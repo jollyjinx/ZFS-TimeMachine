@@ -1,0 +1,35 @@
+# author: Jolly aka Patrick Stein
+# 
+# generic
+# 
+*~
+*.[oa]
+*.bak
+#
+# old svn /cvs
+#
+.cvs/
+.svn/
+#
+# apple specific
+#
+Desktop DF
+Desktop DB
+.Spotlight-V100
+.DS_Store
+.Trashes
+.com.apple.timemachine.supported
+.fseventsd
+.syncinfo
+.TemporaryItems
+#
+# xcode files
+#
+build/
+*~.nib
+*.mode1
+*.mode1v3
+*.mode2v3
+*.pbxuser
+xcuserdata/
+
