@@ -40,6 +40,14 @@ My current setup looks like this:
 
 So puddle is set as source, tank/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
 
+If you want to change the times when backups are removed on the destination you can change the following hash:
+
+	my %buckets = 	(	1	*24*3600	=> 			5*60,	# last day every 5 minutes
+						7	*24*3600 	=> 			3600,	# last 7 days, every hour
+						90	*24*3600	=> 1	*24*3600,	# last 90 days, every day
+					);
+
+	my $buckettime = 7*24*3600; # beyond the time specified in %buckets.
 
 
 
