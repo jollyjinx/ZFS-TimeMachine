@@ -14,10 +14,6 @@ my $sourcepool 								= 'puddle';
 my $destinationpool							= 'tank/puddle';
 my $snapshotstokeeponsource					= 100;	
 
-my $zfsbugworkaroundintermediatefileprefix	= "/Volumes/tmtinkerbell/intermediate.";		# workaround is needed as the 2012-01-06 panics the machine if zfs send pipes to zfs receive
-
-
-
 
 ######################################
 use strict;
@@ -25,6 +21,8 @@ use English;
 use POSIX qw(strftime);
 use Time::Local;
 use Digest::MD5 qw(md5_hex);
+
+$ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
 sub getsnapshotsforpool;
 sub checkforrunningmyself;
@@ -37,7 +35,7 @@ sub pidfilename;
 my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
 print 'Date for this snapshot: '.$snapshotdate."\n";
-`/usr/sbin/zfs snapshot "$sourcepool\@$snapshotdate"`;
+`zfs snapshot "$sourcepool\@$snapshotdate"`;
 
 
 ####
@@ -72,20 +70,21 @@ my $lastcommonsnapshot 		= undef;
 # send new snapshot diff to destination
 ####
 {
-	my $zfsbugworkaroundintermediatefifo = $zfsbugworkaroundintermediatefileprefix.$snapshotdate;
+	my $zfsbugworkaroundintermediatefifo = "/tmp/intermediate.$snapshotdate";	# workaround is needed as the 2012-01-06 panics the machine if zfs send pipes to zfs receive
+
 	`mkfifo "$zfsbugworkaroundintermediatefifo"`;
 
 	
 	if( 0 == ( my $pid = fork() ) )
 	{
-		`/usr/sbin/zfs send -i "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `; 
+		`zfs send -I "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `; 
 	exit;
 	}
 	else
 	{
 		die "Could not fork zfs send" if $pid<0
 	}
-	`/usr/sbin/zfs receive -F "$destinationpool" < "$zfsbugworkaroundintermediatefifo"`;
+	`zfs receive -F "$destinationpool" < "$zfsbugworkaroundintermediatefifo"`;
 	
 	unlink($zfsbugworkaroundintermediatefifo);
 }
@@ -115,7 +114,7 @@ my $lastcommonsnapshot 		= undef;
 		sleep 1;
 		for my $snapshotname (@snapshotstodelete)
 		{
-			`/usr/sbin/zfs destroy "$sourcepool\@$snapshotname"` if length($snapshotname);
+			`zfs destroy "$sourcepool\@$snapshotname"` if length($snapshotname);
 		}
 	}
 }
@@ -144,7 +143,7 @@ for my $snapshotname (reverse @destinationsnapshots )
 		else
 		{
 			print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
-			`/usr/sbin/zfs destroy "$destinationpool\@$snapshotname"`;
+			`zfs destroy "$destinationpool\@$snapshotname"`;
 		}
 	}
 	else
@@ -161,7 +160,7 @@ sub getsnapshotsforpool($)
 	my($pool) 		= @_;
 	my @snapshots;
 	
-	open(FILE,'/usr/sbin/zfs list -t snapshot |') || die "can't read snapshots: $!";
+	open(FILE,'zfs list -t snapshot |') || die "can't read snapshots: $!";
 	
 	while( $_ = <FILE>)
 	{
