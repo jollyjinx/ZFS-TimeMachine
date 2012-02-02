@@ -35,8 +35,6 @@ My current setup looks like this:
 	my $destinationpool				= 'tank/puddle';
 	my $snapshotstokeeponsource		= 100;	
 	
-	my $zfsbugworkaroundintermediatefileprefix	= "/Volumes/tmtinkerbell/intermediate.";		# workaround is needed as the 2012-01-06 panics the machine if zfs send pipes to zfs receive
-
 
 So puddle is set as source, tank/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
 
@@ -47,7 +45,7 @@ If you want to change the times when backups are removed on the destination you 
 						90	*24*3600	=> 1	*24*3600,	# last 90 days, every day
 					);
 
-	my $buckettime = 7*24*3600; # beyond the time specified in %buckets.
+	my $buckettime = 7*24*3600; # keep weekly backups for beyond the time specified in %buckets.
 
 
 

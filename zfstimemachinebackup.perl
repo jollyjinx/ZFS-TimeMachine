@@ -186,7 +186,7 @@ sub bucketfortime($)
 						90	*24*3600	=> 1	*24*3600,	# last 90 days, every day
 					);
 
-	my $buckettime = 7*24*3600; # beyond the time specified in %buckets.
+	my $buckettime = 7*24*3600; # keep weekly backups for beyond the time specified in %buckets.
 
 
 	for my $bucketage  (sort{ $a<=>$b }( keys %buckets ))
