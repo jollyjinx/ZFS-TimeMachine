@@ -72,12 +72,22 @@ my $lastcommonsnapshot 		= undef;
 # send new snapshot diff to destination
 ####
 {
-	my $zfsbugworkaroundintermediatefile = $zfsbugworkaroundintermediatefileprefix.$snapshotdate;
+	my $zfsbugworkaroundintermediatefifo = $zfsbugworkaroundintermediatefileprefix.$snapshotdate;
+	`mkfifo "$zfsbugworkaroundintermediatefifo"`;
+
 	
-	`/usr/sbin/zfs send -i "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefile"`;
-	`cat < "$zfsbugworkaroundintermediatefile" | /usr/sbin/zfs receive -F "$destinationpool"`;
+	if( 0 == ( my $pid = fork() ) )
+	{
+		`/usr/sbin/zfs send -i "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `; 
+	exit;
+	}
+	else
+	{
+		die "Could not fork zfs send" if $pid<0
+	}
+	`/usr/sbin/zfs receive -F "$destinationpool" < "$zfsbugworkaroundintermediatefifo"`;
 	
-	unlink($zfsbugworkaroundintermediatefile);
+	unlink($zfsbugworkaroundintermediatefifo);
 }
 
 ####
@@ -134,7 +144,7 @@ for my $snapshotname (reverse @destinationsnapshots )
 		else
 		{
 			print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
-			`zfs destroy "$destinationpool\@$snapshotname"`;
+			`/usr/sbin/zfs destroy "$destinationpool\@$snapshotname"`;
 		}
 	}
 	else
