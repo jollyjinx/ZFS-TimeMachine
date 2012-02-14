@@ -15,12 +15,13 @@ How it works
 - removes old snapshots on the destination - time machine fashion : 5min/last day, 1 hour last week, 1 day last 3 months, 1 week thereafter
 
 
-How to install
+How to use
 --------------
 
-Right now edit the first four variables in the script according to your setup.
-Add it to crontab and you are set.
+start the script from the command line with --sourcepool and --destinationpool options.
 
+Set --recursive=1 if you want to send the pools and all sub pools recursively.
+Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
 
 My current setup looks like this:
 
@@ -29,11 +30,9 @@ My current setup looks like this:
 	tank           708Gi  911Gi  371Ki  /Volumes/tank
 	tank/puddle    167Gi  911Gi  163Gi  /Volumes/tank/puddle
 
-/Local is where my home directory lives. The script is setup as follows:
+/Local is where my home directory lives. The script is called as follows
 
-	my $sourcepool					= 'puddle';
-	my $destinationpool				= 'tank/puddle';
-	my $snapshotstokeeponsource		= 100;	
+	./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle
 	
 
 So puddle is set as source, tank/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.

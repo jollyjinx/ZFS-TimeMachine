@@ -8,11 +8,30 @@
 #	it sends the snapshot from the source to the destination
 #	removes old snapshots on the source - it keeps just n-snapshots
 #	removes old snapshots on the destination - time machine fashion ( 5min/last day, 1 hour last week, 1 day last 3 months, 1 week thereafter )
+#
+#
+#
+#	example usage: perl zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle
+#
 
 
-my $sourcepool 								= 'puddle';
-my $destinationpool							= 'tank/puddle';
-my $snapshotstokeeponsource					= 100;	
+
+use JNX::Configuration;
+
+my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
+																	'sourcepool'							=>	['puddle','string'],
+																	'snapshotsonsource'						=>	[100,'number'],
+																	'destinationpool'						=>	['tank/puddle','string'],
+# not used yet														'destinationhost'						=>	['','string'],
+																	'recursive'								=>	[0,'flag'],
+																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
+															 }, __PACKAGE__ );
+
+
+
+my $sourcepool 								= $commandlineoption{sourcepool};
+my $destinationpool							= $commandlineoption{destinationpool};
+my $snapshotstokeeponsource					= $commandlineoption{snapshotsonsource};	
 
 
 ######################################
@@ -61,9 +80,19 @@ my $lastcommonsnapshot 		= undef;
 		$lastcommonsnapshot = $snapshotname if $knownindestination{$snapshotname};
 	}
 	
-	die "Could not find common snapshot" if !$lastcommonsnapshot;
+	if( !$lastcommonsnapshot )
+	{
+		print "Could not find common snapshot\n";
 	
-	print 'Last common snapshot:   '.$lastcommonsnapshot."\n";
+		if( ! $commandlineoption{createdestinationsnapshotifneeded} )
+		{
+			die print "Could not find common snapshot\n";
+		}
+	}
+	else
+	{
+		print 'Last common snapshot:   '.$lastcommonsnapshot."\n";
+	}
 }
 
 ####
@@ -77,8 +106,17 @@ my $lastcommonsnapshot 		= undef;
 	
 	if( 0 == ( my $pid = fork() ) )
 	{
-		`zfs send -I "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `; 
-	exit;
+		my $recursive = $commandlineoption{recursive}?'-R':undef;
+		
+		if( $lastcommonsnapshot )
+		{
+			`zfs send $recursive -I "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
+		}
+		else
+		{
+			`zfs send $recursive "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
+		}
+		exit;
 	}
 	else
 	{
