@@ -23,7 +23,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'snapshotsonsource'						=>	[100,'number'],
 																	'destinationpool'						=>	['tank/puddle','string'],
 # not used yet														'destinationhost'						=>	['','string'],
-																	'recursive'								=>	[1,'flag'],
+																	'replicate'								=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
 															 }, __PACKAGE__ );
 
@@ -106,15 +106,15 @@ my $lastcommonsnapshot 		= undef;
 	
 	if( 0 == ( my $pid = fork() ) )
 	{
-		my $recursive = $commandlineoption{recursive}?' -R':undef;
+		my $replicate = $commandlineoption{replicate}?' -R':undef;
 		
 		if( $lastcommonsnapshot )
 		{
-			`zfs send$recursive -I "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
+			`zfs send -I "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
 		}
 		else
 		{
-			`zfs send$recursive "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
+			`zfs send$replicate "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
 		}
 		exit;
 	}
