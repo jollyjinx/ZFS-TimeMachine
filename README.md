@@ -2,7 +2,7 @@
 ZFS TimeMachine
 ===============
 
-Simple ZFS backup from one pool to another via sending snapshots, deleting old ones in time machine style. I'm unsing a Mac with TensCompliments ZFS implementation.
+Simple ZFS backup from one pool to another via sending snapshots, deleting old ones in time machine style. I'm using a Mac with TensCompliments ZFS implementation.
 
 
 How it works
@@ -20,8 +20,23 @@ How to use
 
 start the script from the command line with --sourcepool and --destinationpool options.
 
+	$ zfstimemachinebackup.perl --help                                                                                                                                                                                                                                                                                                                                                                            	[zfstimemachinebackup.perl] module options are :
+	--configurationfilename (string) default: config.ini
+									 current: not used as Config:IniFiles module not present	
+	--createdestinationsnapshotifneeded (flag) default: 1	
+	--debug (number)                 default: 0	
+	--destinationpool (string)       default: tank/puddle	
+	--help (option)                  default: 
+									 current: 1	
+	--recursive (flag)               default: 0	
+	--snapshotsonsource (number)     default: 100	
+	--sourcepool (string)            default: puddle
+
+
 Set --recursive=1 if you want to send the pools and all sub pools recursively.
+
 Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
+
 
 My current setup looks like this:
 
@@ -31,8 +46,8 @@ My current setup looks like this:
 	tank/puddle    167Gi  911Gi  163Gi  /Volumes/tank/puddle
 
 /Local is where my home directory lives. The script is called as follows
-
-	./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle
+	
+	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle
 	
 
 So puddle is set as source, tank/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
