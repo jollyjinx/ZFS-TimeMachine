@@ -143,7 +143,7 @@ my $lastcommonsnapshot 		= undef;
 		push(@snapshotstodelete,$snapshotname);
 	}
 	
-	if( !$lastcommonsnapshot && ( @snapshotstodelete > $snapshotstokeeponsource ) )
+	if( $snapshotstokeeponsource>1 && !$lastcommonsnapshot && ( @snapshotstodelete > $snapshotstokeeponsource ) )
 	{
 		splice(@snapshotstodelete,-1* $snapshotstokeeponsource);
 		
