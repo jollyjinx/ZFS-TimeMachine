@@ -21,7 +21,7 @@ use JNX::Configuration;
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
 																	'sourcepool'							=>	['puddle','string'],
 																	'snapshotsonsource'						=>	[100,'number'],
-																	'destinationpool'						=>	['tank/puddle','string'],
+																	'destinationpool'						=>	['ocean/puddle','string'],
 # not used yet														'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
@@ -60,7 +60,7 @@ print 'Date for this snapshot: '.$snapshotdate."\n";
 ####
 # prevent us from running twice
 ####
-checkforrunningmyself() || die "Already running";
+checkforrunningmyself($sourcepool.$destinationpool) || die "Already running";
 
 
 ####
@@ -99,9 +99,9 @@ my $lastcommonsnapshot 		= undef;
 # send new snapshot diff to destination
 ####
 {
-	my $zfsbugworkaroundintermediatefifo = "/tmp/intermediate.$snapshotdate";	# workaround is needed as the 2012-01-06 panics the machine if zfs send pipes to zfs receive
+	my $zfsbugworkaroundintermediatefifo = "/tmp/intermediate.$snapshotdate.".md5_hex($sourcepool.$destinationpool) ;
 
-	`mkfifo "$zfsbugworkaroundintermediatefifo"`;
+	`mkfifo "$zfsbugworkaroundintermediatefifo"`;		# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
 
 	
 	if( 0 == ( my $pid = fork() ) )
