@@ -68,7 +68,7 @@ sub temporaryfilename($$)
 	
 	if( length $tohash )
 	{
-			$hashname = md5_hex($tohash).'.';
+			$hashname = md5_hex($tohash);
 	}
 	
 	my $prgname = $PROGRAM_NAME;
