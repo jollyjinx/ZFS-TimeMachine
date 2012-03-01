@@ -36,38 +36,31 @@ my $snapshotstokeeponsource					= $commandlineoption{snapshotsonsource};
 
 ######################################
 use strict;
-use English;
 use POSIX qw(strftime);
-use Time::Local;
-use Digest::MD5 qw(md5_hex);
+
+use JNX::ZFS;
+use JNX::System;
 
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
-
-sub getsnapshotsforpool;
-sub checkforrunningmyself;
-sub pidfilename;
-
 
 ####
 # create a new snapshot
 ####
-my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
-print 'Date for this snapshot: '.$snapshotdate."\n";
-`zfs snapshot "$sourcepool\@$snapshotdate"`;
-
+my $newsnapshotname	= JNX::ZFS::createsnapshotforpool($sourcepool) || die "Could not create snaptshot";
+my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime(JNX::ZFS::timeofsnapshot($newsnapshotname));
 
 ####
 # prevent us from running twice
 ####
-checkforrunningmyself($sourcepool.$destinationpool) || die "Already running";
+JNX::System::checkforrunningmyself($sourcepool.$destinationpool) || die "Already running";
 
 
 ####
 # figure out existing snapshots on both pools
 ####
-my @sourcesnapshots 		= getsnapshotsforpool($sourcepool);
-my @destinationsnapshots	= getsnapshotsforpool($destinationpool);
+my @sourcesnapshots 		= JNX::ZFS::getsnapshotsforpool($sourcepool);
+my @destinationsnapshots	= JNX::ZFS::getsnapshotsforpool($destinationpool);
 my $lastcommonsnapshot 		= undef;
 
 {
@@ -99,7 +92,7 @@ my $lastcommonsnapshot 		= undef;
 # send new snapshot diff to destination
 ####
 {
-	my $zfsbugworkaroundintermediatefifo = "/tmp/intermediate.$snapshotdate.".md5_hex($sourcepool.$destinationpool) ;
+	my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
 
 	`mkfifo "$zfsbugworkaroundintermediatefifo"`;		# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
 
@@ -166,11 +159,8 @@ my %backupbuckets;
 
 for my $snapshotname (reverse @destinationsnapshots )
 {
-	if( $snapshotname =~ /^(20\d{2})\-(\d{2})\-(\d{2})\-(\d{2})(\d{2})(\d{2})$/ )
-	{
-		my($year,$month,$day,$hour,$minute,$second) = ($1,$2,$3,$4,$5,$6);
-		my $snapshottime = timelocal($second,$minute,$hour,$day,$month-1,$year);
-		
+	if( my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname) )
+	{		
 		my $bucket = bucketfortime($snapshottime);
 		
 		if( ! $backupbuckets{$bucket} )
@@ -193,24 +183,6 @@ for my $snapshotname (reverse @destinationsnapshots )
 
 exit;
 
-sub getsnapshotsforpool($)
-{
-	my($pool) 		= @_;
-	my @snapshots;
-	
-	open(FILE,'zfs list -t snapshot |') || die "can't read snapshots: $!";
-	
-	while( $_ = <FILE>)
-	{
-		if( /^\Q$pool\E@(\S+)\s/ )
-		{
-			push(@snapshots,$1) if length $1>0;
-		}
-	}
-	close(FILE);
-	
-	return @snapshots;
-}
 
 sub bucketfortime($)
 {
@@ -242,46 +214,3 @@ sub bucketfortime($)
 	return $bucket;
 }
 
-
-sub pidfilename($)
-{
-        my ($runcheckname) = @_;
-
-        my $rsynchashname = undef;
-
-        if( length $runcheckname )
-        {
-                $rsynchashname = md5_hex($runcheckname).'.';
-        }
-
-        my $prgname = $PROGRAM_NAME;
-
-        $prgname =~ s/^(.*\/)//;
-        $prgname =~ s/\s+//g;
-        $prgname .= '.' if length($prgname);
-
-        return '/private/tmp/.'.$prgname.$rsynchashname.'PID';
-}
-
-sub checkforrunningmyself($)
-{
-        my ($runcheckname) = @_;
-
-        my $filename = pidfilename($runcheckname);
-
-        if( open(FILE,$filename) )
-        {
-                my $otherpid = <FILE>;
-                close(FILE);
-
-                if( kill(0,int($otherpid)) )
-                {
-                        return 0;
-                }
-        }
-        open(FILE,'>'.$filename) || die "Can't open pid file";
-        print FILE $$;
-        close(FILE);
-
-        return 1;
-}
