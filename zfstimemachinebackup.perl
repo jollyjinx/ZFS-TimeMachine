@@ -23,7 +23,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'createsnapshotonsource'				=>	[0,'flag'],
 																	'snapshotstokeeponsource'				=>	[0,'number'],
 																	'destinationpool'						=>	['ocean/puddle','string'],
-# not used yet														'destinationhost'						=>	['','string'],
+																	'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
 															 }, __PACKAGE__ );
@@ -31,6 +31,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 
 
 my $sourcepool 								= $commandlineoption{sourcepool};
+my $destinationhost							= $commandlineoption{destinationhost};
 my $destinationpool							= $commandlineoption{destinationpool};
 my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};	
 
@@ -63,7 +64,7 @@ JNX::System::checkforrunningmyself($sourcepool.$destinationpool) || die "Already
 # figure out existing snapshots on both pools
 ####
 my @sourcesnapshots 		= JNX::ZFS::getsnapshotsforpool($sourcepool);
-my @destinationsnapshots	= JNX::ZFS::getsnapshotsforpool($destinationpool);
+my @destinationsnapshots	= JNX::ZFS::getsnapshotsforpoolandhost($destinationpool,$destinationhost);
 
 if( ! @sourcesnapshots )
 {
@@ -105,32 +106,43 @@ my $lastcommonsnapshot 		= undef;
 # send new snapshot diff to destination
 ####
 {
-	my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
-
-	`mkfifo "$zfsbugworkaroundintermediatefifo"`;		# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
-
+	my $zfssendcommand		= undef;
+	my $zfsreceivecommand	= 'zfs receive -F "'.$destinationpool.'"';
 	
-	if( 0 == ( my $pid = fork() ) )
+	if( $lastcommonsnapshot )
 	{
-		my $replicate = $commandlineoption{replicate}?' -R':undef;
-		
-		if( $lastcommonsnapshot )
-		{
-			`zfs send -I "$sourcepool\@$lastcommonsnapshot" "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
-		}
-		else
-		{
-			`zfs send$replicate "$sourcepool\@$snapshotdate" > "$zfsbugworkaroundintermediatefifo" `;
-		}
-		exit;
+		$zfssendcommand	= 'zfs send -I "'.$sourcepool.'@'.$lastcommonsnapshot.'" "'.$sourcepool.'@'.$snapshotdate.'"';
 	}
 	else
 	{
-		die "Could not fork zfs send" if $pid<0
+		$zfssendcommand	= 'zfs send '.($commandlineoption{replicate}?'-R ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
 	}
-	`zfs receive -F "$destinationpool" < "$zfsbugworkaroundintermediatefifo"`;
 	
-	unlink($zfsbugworkaroundintermediatefifo);
+	if($destinationhost)
+	{
+		`$zfssendcommand | (ssh $destinationhost $zfsreceivecommand)`;
+	}
+	else
+	{
+		
+		my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
+
+		`mkfifo "$zfsbugworkaroundintermediatefifo"`;		# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
+
+		
+		if( 0 == ( my $pid = fork() ) )
+		{
+			`$zfssendcommand > "$zfsbugworkaroundintermediatefifo"`;
+			exit;
+		}
+		else
+		{
+			die "Could not fork zfs send" if $pid<0
+		}
+		`$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"`;
+	
+		unlink($zfsbugworkaroundintermediatefifo);
+	}
 }
 
 ####

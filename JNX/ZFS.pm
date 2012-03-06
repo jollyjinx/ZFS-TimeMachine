@@ -11,13 +11,20 @@ $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
 sub createsnapshotforpool($)
 {
-	my($pool) 			= @_;
+	my($pool)		= @_;
+	return createsnapshotforpoolandhost($pool,undef);
+}
+
+sub createsnapshotforpoolandhost($$)
+{
+	my($pool,$host)		= @_;
+	
 	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
 	my $snapshotname	= $pool.'@'.$snapshotdate;
 	`zfs snapshot "$snapshotname"`;
 	
-	my @snapshots = getsnapshotsforpool($pool);
+	my @snapshots = getsnapshotsforpool($pool,$host);
 	
 	for my $name (reverse @snapshots)
 	{
@@ -27,13 +34,19 @@ sub createsnapshotforpool($)
 	return undef;
 }
 
-
 sub getsnapshotsforpool($)
 {
-	my($pool) 		= @_;
+	my($pool)		= @_;
+	return getsnapshotsforpoolandhost($pool,undef);
+}
+
+sub getsnapshotsforpoolandhost($$)
+{
+	my($pool,$host)		= @_;
 	my @snapshots;
 	
-	open(FILE,'zfs list -t snapshot |') || die "can't read snapshots: $!";
+	
+	open(FILE,($host?'ssh '.$host.' ':'').'zfs list -t snapshot |') || die "can't read snapshots: $!";
 	
 	while( $_ = <FILE>)
 	{
