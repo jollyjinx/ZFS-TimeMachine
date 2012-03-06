@@ -20,7 +20,8 @@ use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
 																	'sourcepool'							=>	['puddle','string'],
-																	'snapshotsonsource'						=>	[100,'number'],
+																	'createsnapshotonsource'				=>	[0,'flag'],
+																	'snapshotstokeeponsource'				=>	[0,'number'],
 																	'destinationpool'						=>	['ocean/puddle','string'],
 # not used yet														'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
@@ -31,7 +32,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 
 my $sourcepool 								= $commandlineoption{sourcepool};
 my $destinationpool							= $commandlineoption{destinationpool};
-my $snapshotstokeeponsource					= $commandlineoption{snapshotsonsource};	
+my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};	
 
 
 ######################################
@@ -47,8 +48,10 @@ $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 # create a new snapshot
 ####
 
-my $newsnapshotname	= JNX::ZFS::createsnapshotforpool($sourcepool) || die "Could not create snaptshot";
-my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime(JNX::ZFS::timeofsnapshot($newsnapshotname));
+if( $commandlineoption{createsnapshotonsource} )
+{
+	my $newsnapshotname	= JNX::ZFS::createsnapshotforpool($sourcepool) || die "Could not create snapshot on $sourcepool";
+}
 
 ####
 # prevent us from running twice
@@ -61,6 +64,16 @@ JNX::System::checkforrunningmyself($sourcepool.$destinationpool) || die "Already
 ####
 my @sourcesnapshots 		= JNX::ZFS::getsnapshotsforpool($sourcepool);
 my @destinationsnapshots	= JNX::ZFS::getsnapshotsforpool($destinationpool);
+
+if( ! @sourcesnapshots )
+{
+	die "Did not find snapshot on source pool";
+}
+
+my $lastsourcesnapshot	= @sourcesnapshots[$#sourcesnapshots];
+my $snapshotdate		= strftime "%Y-%m-%d-%H%M%S", localtime(JNX::ZFS::timeofsnapshot($lastsourcesnapshot));
+
+
 my $lastcommonsnapshot 		= undef;
 
 {
