@@ -20,21 +20,25 @@ How to use
 
 start the script from the command line with --sourcepool and --destinationpool options.
 
-	$ zfstimemachinebackup.perl --help                                                                                                                                                                                                                                                                                                                                                                            	[zfstimemachinebackup.perl] module options are :
+	$ zfstimemachinebackup.perl --help
+	[zfstimemachinebackup.perl] module options are :
 	--configurationfilename (string) default: config.ini
 									 current: not used as Config:IniFiles module not present	
 	--createdestinationsnapshotifneeded (flag) default: 1	
+	--createsnapshotonsource (flag)  default: 0	
 	--debug (number)                 default: 0	
-	--destinationpool (string)       default: tank/puddle	
+	--destinationhost (string)       default: 	
+	--destinationpool (string)       default: ocean/puddle	
 	--help (option)                  default: 
 									 current: 1	
-	--recursive (flag)               default: 0	
-	--snapshotsonsource (number)     default: 100	
+	--replicate (flag)               default: 0	
+	--snapshotstokeeponsource (number) default: 0	
 	--sourcepool (string)            default: puddle
 
 
 Set --recursive=1 if you want to send the pools and all sub pools recursively.
 
+Set --createsnapshotonsource if you want to create snapshots on the source
 Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
 
 
@@ -42,15 +46,15 @@ My current setup looks like this:
 
 	$ zfs list
 	puddle         181Gi  19.3Gi  175Gi  /Local
-	tank           708Gi  911Gi  371Ki  /Volumes/tank
-	tank/puddle    167Gi  911Gi  163Gi  /Volumes/tank/puddle
+	ocean           708Gi  911Gi  371Ki  /Volumes/ocean
+	ocean/puddle    167Gi  911Gi  163Gi  /Volumes/ocean/puddle
 
 /Local is where my home directory lives. The script is called as follows
 	
-	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle
+	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource
 	
 
-So puddle is set as source, tank/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
+So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
 
 If you want to change the times when backups are removed on the destination you can change the following hash:
 
