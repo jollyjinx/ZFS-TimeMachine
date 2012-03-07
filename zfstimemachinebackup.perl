@@ -11,7 +11,7 @@
 #
 #
 #
-#	example usage: perl zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle
+#	example usage: perl zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle --snapshotstokeeponsource=100 --createsnapshotonsource
 #
 
 
