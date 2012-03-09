@@ -26,6 +26,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
+																	'deletesnapshotsondestination'			=>	[1,'flag'],
 															 }, __PACKAGE__ );
 
 
@@ -75,7 +76,7 @@ my $lastsourcesnapshot	= @sourcesnapshots[$#sourcesnapshots];
 my $snapshotdate		= strftime "%Y-%m-%d-%H%M%S", localtime(JNX::ZFS::timeofsnapshot($lastsourcesnapshot));
 
 
-my $lastcommonsnapshot 		= undef;
+my $lastcommonsnapshot 			= undef;
 
 {
 	my %knownindestination;
@@ -84,7 +85,10 @@ my $lastcommonsnapshot 		= undef;
 	
 	for my $snapshotname (@sourcesnapshots)
 	{
-		$lastcommonsnapshot = $snapshotname if $knownindestination{$snapshotname};
+		if( $knownindestination{$snapshotname} )
+		{
+			$lastcommonsnapshot 			= $snapshotname;
+		}
 	}
 	
 	if( !$lastcommonsnapshot )
@@ -99,8 +103,38 @@ my $lastcommonsnapshot 		= undef;
 	else
 	{
 		print 'Last common snapshot:   '.$lastcommonsnapshot."\n";
+		
+		if( $commandlineoption{deletesnapshotsondestination} )
+		{	
+			my @snapshotsnewerondestination = ();
+			my $foundlastcommon 			= 0;
+			
+			for my $snapshotname (@destinationsnapshots)
+			{
+				if( $snapshotname eq $lastcommonsnapshot )
+				{
+					$foundlastcommon = 1;
+				}
+				elsif( $foundlastcommon )
+				{
+					push( @snapshotsnewerondestination, $snapshotname );
+				}
+			}
+			
+			if( @snapshotsnewerondestination )
+			{
+				print 'Snapshots newer:',join(',',@snapshotsnewerondestination)."\n";
+				
+				for my $snapshotname (@snapshotsnewerondestination)
+				{
+					my $zfsdestroycommand = 'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
+					`$zfsdestroycommand` && die "Could not destroy snapshot: $zfsdestroycommand";
+				}
+			}
+		}
 	}
 }
+
 
 ####
 # send new snapshot diff to destination
@@ -124,11 +158,12 @@ my $lastcommonsnapshot 		= undef;
 	}
 	else
 	{
-		
+		# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
+
 		my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
-
-		`mkfifo "$zfsbugworkaroundintermediatefifo"`;		# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
-
+		
+		`rm -f "$zfsbugworkaroundintermediatefifo"`;	
+		`mkfifo "$zfsbugworkaroundintermediatefifo"` &&		 die "Could not create fifo: $zfsbugworkaroundintermediatefifo";	
 		
 		if( 0 == ( my $pid = fork() ) )
 		{
@@ -140,10 +175,7 @@ my $lastcommonsnapshot 		= undef;
 			die "Could not fork zfs send" if $pid<0
 		}
 		
-		if( 0 == `$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"` )
-		{
-			die "Could not correctly receive snapshots";
-		}
+		`$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"` 	|| die "Could not correctly receive snapshots";
 	
 		unlink($zfsbugworkaroundintermediatefifo);
 	}
@@ -183,32 +215,33 @@ my $lastcommonsnapshot 		= undef;
 ####
 # remove old snapshots in time machine fashion from destination
 ####
-
-my %backupbuckets;
-
-for my $snapshotname (reverse @destinationsnapshots )
+if( $commandlineoption{deletesnapshotsondestination} )
 {
-	if( my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname) )
-	{		
-		my $bucket = bucketfortime($snapshottime);
-		
-		if( ! $backupbuckets{$bucket} )
-		{
-			$backupbuckets{$bucket}=$snapshotname;
-			print 'Will keep snapshot:  '.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
+	my %backupbuckets;
+	
+	for my $snapshotname (reverse @destinationsnapshots )
+	{
+		if( my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname) )
+		{		
+			my $bucket = bucketfortime($snapshottime);
+			
+			if( ! $backupbuckets{$bucket} )
+			{
+				$backupbuckets{$bucket}=$snapshotname;
+				print 'Will keep snapshot:  '.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
+			}
+			else
+			{
+				print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
+				`zfs destroy "$destinationpool\@$snapshotname"`;
+			}
 		}
 		else
 		{
-			print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
-			`zfs destroy "$destinationpool\@$snapshotname"`;
+			print "snapshot not in YYYY-MM-DD-HHMMSS format: $snapshotname - ignoring\n";
 		}
 	}
-	else
-	{
-		print "snapshot not in YYYY-MM-DD-HHMMSS format: $snapshotname - ignoring\n";
-	}
 }
-
 
 exit;
 
