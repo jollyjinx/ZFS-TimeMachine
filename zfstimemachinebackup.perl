@@ -139,7 +139,11 @@ my $lastcommonsnapshot 		= undef;
 		{
 			die "Could not fork zfs send" if $pid<0
 		}
-		`$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"`;
+		
+		if( 0 == `$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"` )
+		{
+			die "Could not correctly receive snapshots";
+		}
 	
 		unlink($zfsbugworkaroundintermediatefifo);
 	}
