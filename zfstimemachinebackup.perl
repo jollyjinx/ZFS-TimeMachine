@@ -139,6 +139,11 @@ my $lastcommonsnapshot 			= undef;
 ####
 # send new snapshot diff to destination
 ####
+if( $lastcommonsnapshot eq $snapshotdate )
+{
+	print "Did not find newer snapshot on source\n";
+}
+else
 {
 	my $zfssendcommand		= undef;
 	my $zfsreceivecommand	= 'zfs receive -F "'.$destinationpool.'"';
@@ -175,7 +180,7 @@ my $lastcommonsnapshot 			= undef;
 			die "Could not fork zfs send" if $pid<0
 		}
 		
-		`$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"` 	|| die "Could not correctly receive snapshots";
+		`$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"`;
 	
 		unlink($zfsbugworkaroundintermediatefifo);
 	}
