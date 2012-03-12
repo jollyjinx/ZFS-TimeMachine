@@ -127,8 +127,9 @@ my $lastcommonsnapshot 			= undef;
 				
 				for my $snapshotname (@snapshotsnewerondestination)
 				{
-					my $zfsdestroycommand = 'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
+					my $zfsdestroycommand = ($destinationhost?"ssh $destinationhost ":'').'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
 					`$zfsdestroycommand` && die "Could not destroy snapshot: $zfsdestroycommand";
+					@destinationsnapshots = grep(!/^\Q$snapshotname\E$/,@destinationsnapshots); # grep as delete @destinationsnapshots[$snapshotname] works only on hashes.
 				}
 			}
 		}
