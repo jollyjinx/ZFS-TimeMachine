@@ -34,6 +34,10 @@ sub pools()
 				$pools{$poolname}{scanerrors}	= $1;
 				$pools{$poolname}{lastscrub}	= str2time($2);
 			}
+			elsif( $lastscrub =~ m/^scrub in progress/i )
+			{
+				$pools{$poolname}{lastscrub}	= time();
+			}
 			$poolname	= undef;
 			$status		= undef;
 			$lastscrub	= undef;
