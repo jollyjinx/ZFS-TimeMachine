@@ -41,7 +41,7 @@ for my $pool (@scrubpools )
 	{
 		if( $pools{$pool}{lastscrub} < ( time() - (86400*$commandlineoption{scrubinterval})) ) 
 		{
-			`zfs scrub $pool`;
+			`zpool scrub $pool`;
 			print "$pool: starting scrub \n";
 		}
 		else
