@@ -67,6 +67,21 @@ If you want to change the times when backups are removed on the destination you 
 
 
 
+Autoscrub script
+----------------
+For some reason the autoscrub feature of tens complement does not work for me, so I added a script you can use to my ZFS Timemachine script.
+
+	usage: ./autoscrub.perl --scrubinterval=14
+
+will scrub your pools every 14 days. If you cancel a scrub that will be recognized but also it will be scrubed after the scrubinterval passed , in case you forgot that you canceled it.
+
+You can start it for different pools as well.
+
+I'm using it in a crontab entry: 
+	1 * * * * cd ~jolly/Binaries/ZFSTimeMachine;./autoscrub.perl >/dev/null 2>&1
+
+
+
 CheckBackup Script
 -------------------
 
