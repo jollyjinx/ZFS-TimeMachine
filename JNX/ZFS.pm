@@ -10,33 +10,33 @@ use POSIX qw(strftime);
 
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
-sub onlinepools()
+sub pools()
 {
 	open(FILE,'zpool status|') || die "Can't list pools";
 	
 	my %pools;
 
-	my($poolname,$status,$lastscan);
+	my($poolname,$status,$lastscrub);
 
 	while( $_ = <FILE> )
 	{
 		$poolname	= $1	if /^\s*pool:\s*(\S+)/i;
 		$status		= $1	if /^\s*state:\s*(\S+)/i;
-		$lastscan	= $1	if /^\s*scan:\s*(.*)/i;
+		$lastscrub	= $1	if /^\s*scan:\s*(.*)/i;
 	
 		if( /^\s*errors:/i )
 		{
 			$pools{$poolname}{status}	= $status ;
 
 											#scan: scrub repaired 0 in 43h24m with 0 errors on Thu Mar  8 09:38:35 2012
-			if( $lastscan =~ m/with\s+(\d+)\s+errors\s+on\s+(.*?)$/ )
+			if( $lastscrub =~ m/with\s+(\d+)\s+errors\s+on\s+(.*?)$/ )
 			{
 				$pools{$poolname}{scanerrors}	= $1;
-				$pools{$poolname}{lastscan}	= str2time($2);
+				$pools{$poolname}{lastscrub}	= str2time($2);
 			}
 			$poolname	= undef;
 			$status		= undef;
-			$lastscan	= undef;
+			$lastscrub	= undef;
 		}
 	}
 	close(FILE);
