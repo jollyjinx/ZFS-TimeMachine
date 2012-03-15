@@ -36,7 +36,7 @@ sub newFromDefaults(%,$)
 	}
 	$default{'help'}	=['','option'];
 	
-	my %optionconverter = ('string' => '=s', 'number' =>,'=i', 'flag'=>'','option'=>'', );
+	my %optionconverter = ('string' => '=s', 'number' =>,'=i', 'flag'=>'!','option'=>'', );
 	my @ARGVCOPY = @ARGV;
 	GetOptions(	\%commandlineoption, map($_.$optionconverter{${$default{$_}}[-1]},keys %default)  );
 	@ARGV = @ARGVCOPY;
