@@ -60,7 +60,7 @@ sub lastwaketime
 	return $lastwaketime>$lastboottime?$lastwaketime:$lastboottime;
 }
 
-sub temporaryfilename($$)
+sub temporaryfilename
 {
 	my($prefix,$tohash) = @_;
 	
@@ -82,7 +82,7 @@ sub temporaryfilename($$)
 	return '/private/tmp/.'.$prgname.$prefix.$hashname;
 }
 
-sub pidfilename($)
+sub pidfilename
 {
         my ($runcheckname) = @_;
 		
@@ -90,7 +90,7 @@ sub pidfilename($)
 }
 
 	
-sub checkforrunningmyself($)
+sub checkforrunningmyself
 {
         my ($runcheckname) = @_;
 

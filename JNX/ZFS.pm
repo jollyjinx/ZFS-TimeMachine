@@ -10,7 +10,7 @@ use POSIX qw(strftime);
 
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
-sub pools()
+sub pools
 {
 	open(FILE,'zpool status|') || die "Can't list pools";
 	
@@ -52,20 +52,25 @@ sub pools()
 	return \%pools;
 }
 
-sub createsnapshotforpool($)
+sub createsnapshotforpool
 {
 	my($pool)		= @_;
 	return createsnapshotforpoolandhost($pool,undef);
 }
 
-sub createsnapshotforpoolandhost($$)
+sub createsnapshotforpoolandhost
 {
 	my($pool,$host)		= @_;
 	
 	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
 	my $snapshotname	= $pool.'@'.$snapshotdate;
-	`zfs snapshot "$snapshotname"`;
+	
+	if( system('zfs snapshot "'.$snapshotname.'"') )
+	{
+		print STDERR 'Could not create snapshot:'.$snapshotname."\n";
+		return undef;
+	}
 	
 	my @snapshots = getsnapshotsforpool($pool,$host);
 	
@@ -73,17 +78,17 @@ sub createsnapshotforpoolandhost($$)
 	{
 		return $snapshotname if $name eq $snapshotdate;
 	}
-	print STDERR "Could not create snapshot:".$snapshotname."\n";
+	print STDERR 'Could not create snapshot:'.$snapshotname."\n";
 	return undef;
 }
 
-sub getsnapshotsforpool($)
+sub getsnapshotsforpool
 {
 	my($pool)		= @_;
 	return getsnapshotsforpoolandhost($pool,undef);
 }
 
-sub getsnapshotsforpoolandhost($$)
+sub getsnapshotsforpoolandhost
 {
 	my($pool,$host)		= @_;
 	my @snapshots;
@@ -104,7 +109,7 @@ sub getsnapshotsforpoolandhost($$)
 }
 
 
-sub timeofsnapshot($)
+sub timeofsnapshot
 {
 	my ($snapshotname) = @_;
 	

@@ -128,7 +128,7 @@ my $lastcommonsnapshot 			= undef;
 				for my $snapshotname (@snapshotsnewerondestination)
 				{
 					my $zfsdestroycommand = ($destinationhost?"ssh $destinationhost ":'').'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
-					`$zfsdestroycommand` && die "Could not destroy snapshot: $zfsdestroycommand";
+					system($zfsdestroycommand) && die "Could not destroy snapshot: $zfsdestroycommand";
 					@destinationsnapshots = grep(!/^\Q$snapshotname\E$/,@destinationsnapshots); # grep as delete @destinationsnapshots[$snapshotname] works only on hashes.
 				}
 			}
@@ -158,9 +158,9 @@ else
 		$zfssendcommand	= 'zfs send '.($commandlineoption{replicate}?'-R ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
 	}
 	
-	if($destinationhost)
+	if( $destinationhost )
 	{
-		`$zfssendcommand | (ssh $destinationhost $zfsreceivecommand)`;
+		system($zfssendcommand.' | (ssh -C '.$destinationhost.' '.$zfsreceivecommand.')') && die "Can't remote command did fail: $zfssendcommand\n"
 	}
 	else
 	{
@@ -169,11 +169,11 @@ else
 		my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
 		
 		`rm -f "$zfsbugworkaroundintermediatefifo"`;	
-		`mkfifo "$zfsbugworkaroundintermediatefifo"` &&		 die "Could not create fifo: $zfsbugworkaroundintermediatefifo";	
+		system('mkfifo '."$zfsbugworkaroundintermediatefifo")	&& die "Could not create fifo: $zfsbugworkaroundintermediatefifo";	
 		
 		if( 0 == ( my $pid = fork() ) )
 		{
-			`$zfssendcommand > "$zfsbugworkaroundintermediatefifo"`;
+			system($zfssendcommand.'> "'.$zfsbugworkaroundintermediatefifo.'"') && die "Can't execute $zfssendcommand";
 			exit;
 		}
 		else
@@ -181,7 +181,7 @@ else
 			die "Could not fork zfs send" if $pid<0
 		}
 		
-		`$zfsreceivecommand < "$zfsbugworkaroundintermediatefifo"`;
+		system($zfsreceivecommand.'< "'.$zfsbugworkaroundintermediatefifo.'"')	&& die "Can't execute $zfsreceivecommand";
 	
 		unlink($zfsbugworkaroundintermediatefifo);
 	}
@@ -212,7 +212,10 @@ else
 		sleep 1;
 		for my $snapshotname (@snapshotstodelete)
 		{
-			`zfs destroy "$sourcepool\@$snapshotname"` if length($snapshotname);
+			if( length($snapshotname) )
+			{
+				system('zfs destroy "'.$sourcepool.'@'.$snapshotname.'"')	&& print STDERR "Could not destroy snapshot $sourcepool\@$snapshotname";
+			}
 		}
 	}
 }
@@ -239,7 +242,8 @@ if( $commandlineoption{deletesnapshotsondestination} )
 			else
 			{
 				print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
-				`zfs destroy "$destinationpool\@$snapshotname"`;
+				
+				system('zfs destroy "'.$destinationpool.'@'.$snapshotname.'"')	&& print STDERR "Could not destroy snapshot $destinationpool\@$snapshotname";
 			}
 		}
 		else
@@ -252,7 +256,7 @@ if( $commandlineoption{deletesnapshotsondestination} )
 exit;
 
 
-sub bucketfortime($)
+sub bucketfortime
 {
 	my($timetotest)	= @_;
 	

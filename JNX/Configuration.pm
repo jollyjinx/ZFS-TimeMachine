@@ -13,7 +13,7 @@ package JNX::Configuration;
 use Getopt::Long;
 use strict;
 
-sub newFromDefaults(%,$)
+sub newFromDefaults # (\%,$)
 {
 	my($default,$currentpackagename)=@_;
 	

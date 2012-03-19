@@ -41,7 +41,7 @@ for my $pool (@scrubpools )
 	{
 		if( $pools{$pool}{lastscrub} < ( time() - (86400*$commandlineoption{scrubinterval})) ) 
 		{
-			`zpool scrub $pool`;
+			system('zpool scrub '.$pool) && die "could not start scrub: $!";
 			print "$pool: starting scrub \n";
 		}
 		else
