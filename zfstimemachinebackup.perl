@@ -168,7 +168,7 @@ else
 
 		my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
 		
-		`rm -f "$zfsbugworkaroundintermediatefifo"`;	
+		unlink($zfsbugworkaroundintermediatefifo);
 		system('mkfifo '."$zfsbugworkaroundintermediatefifo")	&& die "Could not create fifo: $zfsbugworkaroundintermediatefifo";	
 		
 		if( 0 == ( my $pid = fork() ) )
