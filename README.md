@@ -113,3 +113,29 @@ I'm currently using a script at crontab to tell me when things go wrong:
 		./checkbackup.perl --pool="$pool" --snapshotinterval=300 || say -v alex "pool snapshot for $pool is too old"
 	done
 
+
+
+TimeMachine backups to ZFS Volumes
+----------------------------------
+I now have moved everything except for my boot partitions to ZFS. To have some backup of the root drive I'm backing that of with Apples provided TimeMachine and here is how I do it:
+
+Create a zfs filesystem for the TimeMachine backups for several machines:
+
+	zfs create ocean/TimeMachine
+
+
+Create a 100Gb sparsebundle for TimeMachine (my root is rather small, your mileage may vary):
+
+	hdiutil create -size 100g -library SPUD -fs XHFS+J -type SPARSEBUNDLE -volname "tmmachinename" /Volumes/ocean/TimeMachine/tmmachinename.sparsebundle
+
+
+Set up crontab to mount the sparsebundle every 20 minutes if it's not mounted yet. This is needed as TimeMachine will unmount the backup disk if it's a sparsebundle after backing up.
+
+	*/20 * * * *	if [ ! -d /Volumes/tmtinkerbell ] ;then hdiutil attach /Volumes/ocean/TimeMachine/tmmachinename.sparsebundle; fi </dev/null >/dev/null 2>&1
+
+
+Set up TimeMachine to use the sparsebundle:
+
+	tmutil setdestination -p /Volumes/tmmachinename
+
+
