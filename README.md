@@ -126,7 +126,7 @@ Create a zfs filesystem for the TimeMachine backups for several machines:
 
 Create a 100Gb sparsebundle for TimeMachine (my root is rather small, your mileage may vary):
 
-	hdiutil create -size 100g -library SPUD -fs XHFS+J -type SPARSEBUNDLE -volname "tmmachinename" /Volumes/ocean/TimeMachine/tmmachinename.sparsebundle
+	hdiutil create -size 100g -library SPUD -fs JHFSX -type SPARSEBUNDLE -volname "tmmachinename" /Volumes/ocean/TimeMachine/tmmachinename.sparsebundle
 
 
 Set up crontab to mount the sparsebundle every 20 minutes if it's not mounted yet. This is needed as TimeMachine will unmount the backup disk if it's a sparsebundle after backing up.
