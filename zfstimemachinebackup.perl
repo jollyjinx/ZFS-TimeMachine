@@ -243,7 +243,16 @@ if( $commandlineoption{deletesnapshotsondestination} )
 			{
 				print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
 				
-				system('zfs destroy "'.$destinationpool.'@'.$snapshotname.'"')	&& print STDERR "Could not destroy snapshot $destinationpool\@$snapshotname";
+				my $zfsdestroycommand = 'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
+				
+				if( $destinationhost )
+				{
+					system('ssh -C '.$destinationhost.' '.$zfsdestroycommand) && die "Could not destroy snapshot $destinationpool\@$snapshotname on remote host\n"
+				}
+				else
+				{
+					system($zfsdestroycommand)	&& print STDERR "Could not destroy snapshot $destinationpool\@$snapshotname";
+				}			
 			}
 		}
 		else
