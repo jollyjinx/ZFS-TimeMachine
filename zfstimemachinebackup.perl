@@ -127,8 +127,8 @@ my $lastcommonsnapshot 			= undef;
 				
 				for my $snapshotname (@snapshotsnewerondestination)
 				{
-					my $zfsdestroycommand = ($destinationhost?"ssh $destinationhost ":'').'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
-					system($zfsdestroycommand) && die "Could not destroy snapshot: $zfsdestroycommand";
+					JNX::ZFS::destroysnapshotonpoolandhost($snapshotname,$destinationpool,$destinationhost);
+					
 					@destinationsnapshots = grep(!/^\Q$snapshotname\E$/,@destinationsnapshots); # grep as delete @destinationsnapshots[$snapshotname] works only on hashes.
 				}
 			}
@@ -214,7 +214,7 @@ else
 		{
 			if( length($snapshotname) )
 			{
-				system('zfs destroy "'.$sourcepool.'@'.$snapshotname.'"')	&& print STDERR "Could not destroy snapshot $sourcepool\@$snapshotname";
+				JNX::ZFS::destroysnapshotonpoolandhost($snapshotname,$sourcepool);
 			}
 		}
 	}
@@ -243,16 +243,7 @@ if( $commandlineoption{deletesnapshotsondestination} )
 			{
 				print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
 				
-				my $zfsdestroycommand = 'zfs destroy "'.$destinationpool.'@'.$snapshotname.'"';
-				
-				if( $destinationhost )
-				{
-					system('ssh -C '.$destinationhost.' '.$zfsdestroycommand) && die "Could not destroy snapshot $destinationpool\@$snapshotname on remote host\n"
-				}
-				else
-				{
-					system($zfsdestroycommand)	&& print STDERR "Could not destroy snapshot $destinationpool\@$snapshotname";
-				}			
+				JNX::ZFS::destroysnapshotonpoolandhost($snapshotname,$destinationpool,$destinationhost);
 			}
 		}
 		else

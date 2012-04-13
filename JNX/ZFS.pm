@@ -124,4 +124,32 @@ sub timeofsnapshot
 }
 
 
+
+sub destroysnapshotonpoolandhost
+{
+	my($snapshot,$pool,$host)	= @_;
+	
+	my $zfsdestroycommand = 'zfs destroy "'.$pool.'@'.$snapshot.'"';
+	
+	if( $host )
+	{
+		if( ! system('ssh -C '.$host.' '.$zfsdestroycommand) )
+		{
+			print STDERR "Could not destroy snapshot $pool\@$snapshot on remote $host\n";
+			return undef;
+		}
+	}
+	else
+	{
+		if( ! system($zfsdestroycommand) )
+		{
+			print STDERR "Could not destroy snapshot $pool\@$snapshot";
+			return undef;
+		}
+	}		
+	
+	return 1;
+}
+
+
 1;
