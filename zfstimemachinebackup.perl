@@ -25,6 +25,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'destinationpool'						=>	['ocean/puddle','string'],
 																	'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
+																	'deduplicate'							=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
 																	'deletesnapshotsondestination'			=>	[1,'flag'],
 															 }, __PACKAGE__ );
@@ -151,11 +152,11 @@ else
 	
 	if( $lastcommonsnapshot )
 	{
-		$zfssendcommand	= 'zfs send -I "'.$sourcepool.'@'.$lastcommonsnapshot.'" "'.$sourcepool.'@'.$snapshotdate.'"';
+		$zfssendcommand	= 'zfs send '.($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcepool.'@'.$lastcommonsnapshot.'" "'.$sourcepool.'@'.$snapshotdate.'"';
 	}
 	else
 	{
-		$zfssendcommand	= 'zfs send '.($commandlineoption{replicate}?'-R ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
+		$zfssendcommand	= 'zfs send '.($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
 	}
 	
 	if( $destinationhost )
