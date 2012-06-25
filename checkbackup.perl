@@ -24,7 +24,7 @@ use JNX::System;
 
 JNX::System::checkforrunningmyself($commandlineoption{'pool'}) || die "Already running which means zfs test for snapshots is too slow";
 
-my $lastwaketime = JNX::System::lastwaketime();
+my $lastwaketime 	= JNX::System::lastwaketime();
 
 my @snapshots		= JNX::ZFS::getsnapshotsforpool($commandlineoption{'pool'});
 my $snapshottime	= JNX::ZFS::timeofsnapshot( pop @snapshots );

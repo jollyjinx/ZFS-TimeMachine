@@ -95,9 +95,11 @@ my $lastcommonsnapshot 			= undef;
 	if( !$lastcommonsnapshot )
 	{
 		print "Could not find common snapshot\n";
+			print "Destination snapshots:\n\t".join("\n\t",@destinationsnapshots)."\n";
+			print "Source snapshots:\n\t".join("\n\t",@sourcesnapshots)."\n";
 	
 		if( ! $commandlineoption{createdestinationsnapshotifneeded} )
-		{
+		{	
 			die;
 		}
 	}

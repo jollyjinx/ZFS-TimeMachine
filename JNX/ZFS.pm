@@ -2,13 +2,31 @@ package JNX::ZFS;
 
 use strict;
 use Time::Local;
-use Date::Parse;
+#use Date::Parse;
 use POSIX qw(strftime);
 
 
 
 
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
+
+sub getpoolandhost
+{
+	my($pool,$host) = @_;
+	
+	if( !$host )
+	{
+		my @array = split( /:/ , $pool );
+		
+		if( 2 == @array )
+		{
+			
+			return (@array[1],@array[0]);
+		}
+	}
+	return ($pool,$host);
+}
+
 
 sub pools
 {
@@ -54,14 +72,13 @@ sub pools
 
 sub createsnapshotforpool
 {
-	my($pool)		= @_;
-	return createsnapshotforpoolandhost($pool,undef);
+	return createsnapshotforpoolandhost(getpoolandhost(@_));
 }
 
 sub createsnapshotforpoolandhost
 {
-	my($pool,$host)		= @_;
-	
+	my($pool,$host)		= getpoolandhost(@_);
+		
 	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
 	my $snapshotname	= $pool.'@'.$snapshotdate;
@@ -84,13 +101,12 @@ sub createsnapshotforpoolandhost
 
 sub getsnapshotsforpool
 {
-	my($pool)		= @_;
-	return getsnapshotsforpoolandhost($pool,undef);
+	return getsnapshotsforpoolandhost(getpoolandhost(@_));
 }
 
 sub getsnapshotsforpoolandhost
 {
-	my($pool,$host)		= @_;
+	my($pool,$host)		= getpoolandhost(@_);
 	my @snapshots;
 	
 	
@@ -127,8 +143,9 @@ sub timeofsnapshot
 
 sub destroysnapshotonpoolandhost
 {
-	my($snapshot,$pool,$host)	= @_;
-	
+	my($snapshot,@otherargs)	= @_;
+	my($pool,$host)		= getpoolandhost(@otherargs);
+
 	my $zfsdestroycommand = 'zfs destroy "'.$pool.'@'.$snapshot.'"';
 	
 	if( $host )
