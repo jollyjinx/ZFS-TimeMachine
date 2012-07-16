@@ -79,7 +79,7 @@ sub temporaryfilename
 	
 	$prefix	.= '.' if length $prefix;
 	
-	return '/private/tmp/.'.$prgname.$prefix.$hashname;
+	return '/tmp/.'.$prgname.$prefix.$hashname;
 }
 
 sub pidfilename
