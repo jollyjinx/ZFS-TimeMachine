@@ -1,8 +1,8 @@
 package JNX::ZFS;
 
 use strict;
-use Time::Local;
-#use Date::Parse;
+use Time::Local qw(timelocal);
+use Date::Parse qw(str2time);
 use POSIX qw(strftime);
 
 
