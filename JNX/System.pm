@@ -3,7 +3,7 @@ package JNX::System;
 
 use strict;
 use English;
-#use Date::Parse;
+use Date::Parse qw(str2time);
 use Digest::MD5 qw(md5_hex);
 
 
@@ -42,10 +42,10 @@ sub lastwaketime
 			if( 	(		$message =~ m/^\s+\-\s+Message:\s+Wake:/m 
 						&&	$message =~ m/^\s+\-\s+Time:\s+(\S.+)$/m 
 					)
-				||	( $message =~ m/^20(\d\d\-\d\d\-\d\d.+?)\s+wake\s+\t/m )
+				||	( $message =~ m/^(.+?)(  GMT)?\s+wake\s*\t/im )
 				)
 			{
-				my $waketime = str2time('20'.$1);
+				my $waketime = str2time($1);
 				$lastwaketime = $waketime if $waketime > $lastwaketime;
 			}
 		
