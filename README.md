@@ -15,6 +15,14 @@ How it works
 - removes old snapshots on the destination - time machine fashion : 5min/last day, 1 hour last week, 1 day last 3 months, 1 week thereafter
 
 
+Requirements
+------------
+It requires perl and the Time::Local and Date::Parse libraries. If you are on a Mac you can install them by using the command line:
+
+	$export PERL_MM_USE_DEFAULT=1 ; perl -MCPAN -e 'install Date::Parse' 'install Time::Local'
+
+If you are on a different OS (like linux or bsd) everything should work. The checkbackupscript can't find out the last sleep and boot time then and will bug you about backups beeing too old when the machine has beeing powerd off for some time.
+
 How to use
 --------------
 
