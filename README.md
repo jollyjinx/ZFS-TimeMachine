@@ -96,7 +96,7 @@ CheckBackup Script
 The checkbackup.perl script  checks if your backupscript is working correctly. As I do sleep my machine it will check if the snapshots are beeing done within the last 2*snapshotinterval+snapshottime seconds since the last wake or reboot. Exit code is correct depending if the snapshot is there or not.
 
 It has three options:
-	--pool which pool to use
+	--pools which pool(s) to use comma separated list
 	--snaphotinterval how often do you create snapshots
 	--snapshotime how long it usually take for a snapshot to complete
 	
@@ -116,10 +116,9 @@ It has three options:
 I'm currently using a script at crontab to tell me when things go wrong:
 	
 	#!/bin/zsh
-	for pool in puddle "ocean/puddle"
-	do
-		./checkbackup.perl --pool="$pool" --snapshotinterval=300 || say -v alex "pool snapshot for $pool is too old"
-	done
+
+	./checkbackup.perl --pools="puddle/jolly,puddle/jolly/Pictures,puddle/jolly/Library" --snapshotinterval=7200 || say -v alex "pool snapshot for $pool is too old"
+	./checkbackup.perl --pools="example.com:rootpool/puddle/jolly/Pictures" --snapshotinterval=7200 || say -v alex "pool snapshot for $pool is too old"
 
 
 

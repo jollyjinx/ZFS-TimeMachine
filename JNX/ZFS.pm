@@ -6,8 +6,6 @@ use Date::Parse qw(str2time);
 use POSIX qw(strftime);
 
 
-
-
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
 sub getpoolandhost
@@ -77,7 +75,7 @@ sub createsnapshotforpool
 
 sub createsnapshotforpoolandhost
 {
-	my($pool,$host)		= getpoolandhost(@_);
+	my($pool,$host)		= @_;
 		
 	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
@@ -104,24 +102,39 @@ sub getsnapshotsforpool
 	return getsnapshotsforpoolandhost(getpoolandhost(@_));
 }
 
+
+my	%snapshotmemory;
+
 sub getsnapshotsforpoolandhost
 {
-	my($pool,$host)		= getpoolandhost(@_);
-	my @snapshots;
-	
-	
-	open(FILE,($host?'ssh '.$host.' ':'').'zfs list -t snapshot |') || die "can't read snapshots: $!";
-	
-	while( $_ = <FILE>)
+	my($pool,$host)		= @_;
+
+	$host='localhost' if !length($host);
+
+	if( time()-$snapshotmemory{$host}{lasttime} > 500 )
 	{
-		if( /^\Q$pool\E@(\S+)\s/ )
+		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot |') || die "can't read snapshots: $!";
+
+		delete $snapshotmemory{$host};
+
+		while( $_ = <FILE>)
 		{
-			push(@snapshots,$1) if length $1>0;
+			if( /^([a-zA-Z0-9\s\/]+)\@(\S+)\s/ )
+			{
+				push(@{$snapshotmemory{$host}{pools}{$1}},$2) if length $2>0;
+			}
 		}
+		close(FILE);
+
+		$snapshotmemory{$host}{lasttime}=time();
 	}
-	close(FILE);
-	
-	return @snapshots;
+	else
+	{
+		# print STDERR "Serving from cache\n";
+	}
+	my $snapshotsref = $snapshotmemory{$host}{pools}{$pool};
+
+	return $snapshotsref?@{$snapshotsref}:();
 }
 
 

@@ -12,7 +12,7 @@
 use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'pool'							=>	['puddle','string'],
+																	'pools'							=>	['puddle','string'],
 																	'snapshotinterval'				=>	[300,'number'],
 																	'snapshottime'					=>	[10,'number'],
 															 }, __PACKAGE__ );
@@ -22,31 +22,36 @@ use strict;
 use JNX::ZFS;
 use JNX::System;
 
-JNX::System::checkforrunningmyself($commandlineoption{'pool'}) || die "Already running which means zfs test for snapshots is too slow";
+JNX::System::checkforrunningmyself($commandlineoption{'pools'}) || die "Already running which means lookup for snapshots is too slow";
 
 my $lastwaketime 	= JNX::System::lastwaketime();
+my @poolstotest		= split(/,/,$commandlineoption{'pools'});
 
-my @snapshots		= JNX::ZFS::getsnapshotsforpool($commandlineoption{'pool'});
-my $snapshottime	= JNX::ZFS::timeofsnapshot( pop @snapshots );
-
-my $snapshotoffset	= (2 * $commandlineoption{'snapshotinterval'}) + $commandlineoption{'snapshottime'};
-
-
-if( $snapshottime + $snapshotoffset < time() )
+for my $pooltotest (@poolstotest)
 {
-	if( $lastwaketime + $snapshotoffset < time() )
+	print STDERR "Testing pool: $pooltotest\n";
+
+	my @snapshots		= JNX::ZFS::getsnapshotsforpool($pooltotest);
+	# print STDERR "Snapshots: @snapshots\n";
+
+	my $snapshottime	= JNX::ZFS::timeofsnapshot( pop @snapshots );
+
+	my $snapshotoffset	= (2 * $commandlineoption{'snapshotinterval'}) + $commandlineoption{'snapshottime'};
+
+	if( $snapshottime + $snapshotoffset < time() )
 	{
-		print STDERR "Last snapshot for pool (".$commandlineoption{'pool'}."):".localtime($snapshottime)." - too old\n";
-		exit 1;
+		if( $lastwaketime + $snapshotoffset < time() )
+		{
+			print STDERR "Last snapshot for pool (".$pooltotest."):".localtime($snapshottime)." - too old\n";
+			exit 1;
+		}
+		else
+		{
+			print STDERR "Not long enough after reboot\n";
+			exit 0;
+		}
 	}
-	else
-	{
-		print STDERR "Not long enough after reboot\n";
-		exit 0;
-	}
+	print STDERR "Last snapshot for pool (".$pooltotest."):".localtime($snapshottime)." - ok\n";
 }
-
-print STDERR "Last snapshot for pool (".$commandlineoption{'pool'}."):".localtime($snapshottime)." - ok\n";
-
 exit 0;
 
