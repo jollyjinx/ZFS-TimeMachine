@@ -95,7 +95,8 @@ CheckBackup Script
 
 The checkbackup.perl script  checks if your backupscript is working correctly. As I do sleep my machine it will check if the snapshots are beeing done within the last 2*snapshotinterval+snapshottime seconds since the last wake or reboot. Exit code is correct depending if the snapshot is there or not.
 
-It has three options:
+It has three options :
+
 	--pools which pool(s) to use comma separated list
 	--snaphotinterval how often do you create snapshots
 	--snapshotime how long it usually take for a snapshot to complete
@@ -107,7 +108,7 @@ It has three options:
 	--debug (number)                 default: 0	
 	--help (option)                  default: 
 									 current: 1	
-	--pool (string)                  default: puddle	
+	--pools (string)                 default: puddle	
 	--snapshotinterval (number)      default: 300	
 	--snapshottime (number)          default: 10
 
