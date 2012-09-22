@@ -119,7 +119,7 @@ sub getsnapshotsforpoolandhost
 
 		while( $_ = <FILE>)
 		{
-			if( /^([a-zA-Z0-9\s\/]+)\@(\S+)\s/ )
+			if( /^([-a-zA-Z0-9\s\/]+)\@(\S+)\s/ )
 			{
 				push(@{$snapshotmemory{$host}{pools}{$1}},$2) if length $2>0;
 			}
