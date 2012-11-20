@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 # author: 	patrick stein aka jolly
-# date:	  	2012-01-25
 # purpose:	simple zfs backup from one pool to another via sending snapshots, deleting old ones in time machine style.
 #
 #	the script creates a snapshot on the source pool every time it is called
