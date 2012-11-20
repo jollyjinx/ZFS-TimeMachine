@@ -97,6 +97,9 @@ If you want to change the times when backups are removed on the destination you 
 
 	24h=>5mi	for snapshots younger than keep not more than one per 5 minutes
 	7d=>1h		for snapshots younger than 7 days keep not more than one snapshot per 1 hour
+	.
+	.
+	.
 
 Currently I do have some special directories that are not kept as long as I do not mind loosing history in them. Those are defined via the maximumtimeperfilesystemhash.
 
