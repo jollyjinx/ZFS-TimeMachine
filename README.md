@@ -43,9 +43,12 @@ start the script from the command line with --sourcepool and --destinationpool o
 	--snapshotstokeeponsource (number) default: 0	
 	--sourcepool (string)            default: puddle
 
+	--keepbackupshash (string)       default: 24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month	
+	--maximumtimeperfilesystemhash (string) default: .*=>10yrs,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month	
+	--recursive (flag)               default: 0	
+
 
 Set --recursive=1 if you want to send the pools and all sub pools recursively.
-
 Set --createsnapshotonsource if you want to create snapshots on the source
 Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
 
@@ -53,9 +56,35 @@ Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpoo
 My current setup looks like this:
 
 	$ zfs list
-	puddle         181Gi  19.3Gi  175Gi  /Local
-	ocean           708Gi  911Gi  371Ki  /Volumes/ocean
-	ocean/puddle    167Gi  911Gi  163Gi  /Volumes/ocean/puddle
+	puddle                                                           207Gi   214Gi   864Ki  /Volumes/puddle
+	puddle/Local                                                     207Gi   214Gi  2.50Gi  /Local
+	puddle/Local/Users                                               204Gi   214Gi   891Mi  /Local/Users
+	puddle/Local/Users/jolly                                         204Gi   214Gi  50.4Gi  /Local/Users/jolly
+	puddle/Local/Users/jolly/Disks                                  22.4Gi   214Gi  22.3Gi  /Local/Users/jolly/Disks
+	puddle/Local/Users/jolly/Downloads                              1.62Gi   214Gi  1.62Gi  /Local/Users/jolly/Downloads
+	puddle/Local/Users/jolly/Dropbox                                3.53Gi   214Gi  3.53Gi  /Local/Users/jolly/Dropbox
+	puddle/Local/Users/jolly/Library                                44.6Gi   214Gi  28.3Gi  /Local/Users/jolly/Library
+	puddle/Local/Users/jolly/Library/Caches                         2.05Gi   214Gi  2.04Gi  /Local/Users/jolly/Library/Caches
+	puddle/Local/Users/jolly/Library/Logs                           72.2Mi   214Gi  70.4Mi  /Local/Users/jolly/Library/Logs
+	puddle/Local/Users/jolly/Library/Mail                           13.8Gi   214Gi  13.7Gi  /Local/Users/jolly/Library/Mail
+	puddle/Local/Users/jolly/Library/Mail Downloads                  868Ki   214Gi   868Ki  /Local/Users/jolly/Library/Mail Downloads
+	puddle/Local/Users/jolly/Library/Saved Application State        50.8Mi   214Gi  9.38Mi  /Local/Users/jolly/Library/Saved Application State
+	puddle/Local/Users/jolly/Pictures                               80.4Gi   214Gi  80.4Gi  /Local/Users/jolly/Pictures
+	ocean                                                           1.24Ti   567Gi   266Ki  /Volumes/ocean
+	ocean/puddle                                                     635Gi   567Gi   187Ki  /Volumes/ocean/puddle
+	ocean/puddle/Local                                               635Gi   567Gi  1.76Gi  /Volumes/ocean/puddle/Local
+	ocean/puddle/Local/Users                                         632Gi   567Gi   539Mi  /Volumes/ocean/puddle/Local/Users
+	ocean/puddle/Local/Users/jolly                                   631Gi   567Gi  49.8Gi  /Volumes/ocean/puddle/Local/Users/jolly
+	ocean/puddle/Local/Users/jolly/Disks                            48.0Gi   567Gi  22.1Gi  /Volumes/ocean/puddle/Local/Users/jolly/Disks
+	ocean/puddle/Local/Users/jolly/Downloads                        1.62Gi   567Gi  1.62Gi  /Volumes/ocean/puddle/Local/Users/jolly/Downloads
+	ocean/puddle/Local/Users/jolly/Dropbox                          4.42Gi   567Gi  3.47Gi  /Volumes/ocean/puddle/Local/Users/jolly/Dropbox
+	ocean/puddle/Local/Users/jolly/Library                          93.7Gi   567Gi  22.6Gi  /Volumes/ocean/puddle/Local/Users/jolly/Library
+	ocean/puddle/Local/Users/jolly/Library/Caches                   1.90Gi   567Gi  1.90Gi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Caches
+	ocean/puddle/Local/Users/jolly/Library/Logs                     65.2Mi   567Gi  65.1Mi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Logs
+	ocean/puddle/Local/Users/jolly/Library/Mail                     18.6Gi   567Gi  11.2Gi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Mail
+	ocean/puddle/Local/Users/jolly/Library/Mail Downloads            210Ki   567Gi   208Ki  /Volumes/ocean/puddle/Local/Users/jolly/Library/Mail Downloads
+	ocean/puddle/Local/Users/jolly/Library/Saved Application State  12.4Mi   567Gi  5.83Mi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Saved Application State
+	ocean/puddle/Local/Users/jolly/Pictures                         85.7Gi   567Gi  73.8Gi  /Volumes/ocean/puddle/Local/Users/jolly/Pictures
 
 /Local is where my home directory lives. The script is called as follows
 	
@@ -64,15 +93,18 @@ My current setup looks like this:
 
 So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
 
-If you want to change the times when backups are removed on the destination you can change the following hash:
+If you want to change the times when backups are removed on the destination you can change keepbackupshash commandline hash. The default means:
 
-	my %buckets = 	(	1	*24*3600	=> 			5*60,	# last day every 5 minutes
-						7	*24*3600 	=> 			3600,	# last 7 days, every hour
-						90	*24*3600	=> 1	*24*3600,	# last 90 days, every day
-					);
+	24h=>5mi	for snapshots younger than keep not more than one per 5 minutes
+	7d=>1h		for snapshots younger than 7 days keep not more than one snapshot per 1 hour
 
-	my $buckettime = 7*24*3600; # keep weekly backups for beyond the time specified in %buckets.
+Currently I do have some special directories that are not kept as long as I do not mind loosing history in them. Those are defined via the maximumtimeperfilesystemhash.
 
+	.*=>10yrs	keep everything 10 years by default - after that snapshots are removed
+	
+	.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month
+				remove snapshots older than one month for directories ending with the regex.
+	
 
 
 Autoscrub script
@@ -111,7 +143,6 @@ It has three options :
 	--pools (string)                 default: puddle	
 	--snapshotinterval (number)      default: 300	
 	--snapshottime (number)          default: 10
-
 
 
 I'm currently using a script at crontab to tell me when things go wrong:
