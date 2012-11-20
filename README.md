@@ -48,7 +48,7 @@ start the script from the command line with --sourcepool and --destinationpool o
 	--recursive (flag)               default: 0	
 
 
-Set --recursive=1 if you want to send the pools and all sub pools recursively.
+Set --recursive if you want to send the pools and all sub pools recursively.
 Set --createsnapshotonsource if you want to create snapshots on the source
 Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
 
@@ -88,7 +88,7 @@ My current setup looks like this:
 
 /Local is where my home directory lives. The script is called as follows
 	
-	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource
+	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
 	
 
 So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
