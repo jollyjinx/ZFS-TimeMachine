@@ -70,24 +70,19 @@ sub pools
 
 sub createsnapshotforpool
 {
-	return createsnapshotforpoolandhost(getpoolandhost(@_));
-}
-
-sub createsnapshotforpoolandhost
-{
-	my($pool,$host)		= @_;
+	my($pool,$recursive)		= @_;
 		
 	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
 	my $snapshotname	= $pool.'@'.$snapshotdate;
 	
-	if( system('zfs snapshot "'.$snapshotname.'"') )
+	if( system('zfs snapshot '.($recursive?'-r ':'').'"'.$snapshotname.'"') )
 	{
 		print STDERR 'Could not create snapshot:'.$snapshotname."\n";
 		return undef;
 	}
 	
-	my @snapshots = getsnapshotsforpool($pool,$host);
+	my @snapshots = getsnapshotsforpool($pool);
 	
 	for my $name (reverse @snapshots)
 	{
@@ -114,7 +109,6 @@ sub getsnapshotsforpoolandhost
 	if( time()-$snapshotmemory{$host}{lasttime} > 500 )
 	{
 		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot |') || die "can't read snapshots: $!";
-
 		delete $snapshotmemory{$host};
 
 		while( $_ = <FILE>)
@@ -137,6 +131,14 @@ sub getsnapshotsforpoolandhost
 	return $snapshotsref?@{$snapshotsref}:();
 }
 
+sub getsubfilesystemsonpool
+{
+	my($pool) = @_;
+
+	getsnapshotsforpoolandhost($pool);
+
+	return sort{ length($a)<=>length($b) }(grep(/^\Q$pool\E/, keys( %{$snapshotmemory{'localhost'}{pools}} )) );
+}
 
 sub timeofsnapshot
 {
