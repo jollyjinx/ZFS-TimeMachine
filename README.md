@@ -2,7 +2,7 @@
 ZFS TimeMachine
 ===============
 
-Simple ZFS backup from one pool to another via sending snapshots, deleting old ones in time machine style. I'm using a Mac with TensCompliments ZFS implementation.
+Simple ZFS backup from one pool to another via sending snapshots, deleting old ones in time machine style. I'm using a Mac with TensCompliments ZFS implementation on my Mac and Mac and FreeBSD as destination hosts.
 
 
 How it works
@@ -21,7 +21,7 @@ It requires perl and the Time::Local and Date::Parse libraries. If you are on a 
 
 	$export PERL_MM_USE_DEFAULT=1 ; perl -MCPAN -e 'install Date::Parse' 'install Time::Local'
 
-If you are on a different OS (like linux or bsd) everything should work. The checkbackupscript can't find out the last sleep and boot time then and will bug you about backups beeing too old when the machine has beeing powerd off for some time.
+If you are on a different OS (like linux or bsd) everything should work.
 
 How to use
 --------------
@@ -88,10 +88,16 @@ My current setup looks like this:
 
 /Local is where my home directory lives. The script is called as follows
 	
+
 	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
 	
-
 So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
+
+I'm also sending backups from the backupdisk to a remote machine with less space, so I keep backups only for 3 months:
+
+	$ ./zfstimemachinebackup.perl  --sourcepool=ocean/puddle --destinationpool=backups/puddle --destinationhost=server.example.com --recursive --maximumtimeperfilesystemhash='.*=>3months,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month'
+
+
 
 If you want to change the times when backups are removed on the destination you can change keepbackupshash commandline hash. The default means:
 
@@ -129,6 +135,7 @@ CheckBackup Script
 -------------------
 
 The checkbackup.perl script  checks if your backupscript is working correctly. As I do sleep my machine it will check if the snapshots are beeing done within the last 2*snapshotinterval+snapshottime seconds since the last wake or reboot. Exit code is correct depending if the snapshot is there or not.
+If the checkbackupscript can't find out the last sleep and boot time it will bug you about backups beeing too old when the machine has beeing powerd off for some time.
 
 It has three options :
 
