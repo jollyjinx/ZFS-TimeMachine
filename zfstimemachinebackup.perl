@@ -52,7 +52,6 @@ if( $commandlineoption{debug} )
 
 	print STDERR Data::Dumper->Dumper($timebuckets)."\n";
 	print STDERR Data::Dumper->Dumper($maximumtimebuckets)."\n";
-	print STDERR Data::Dumper->Dumper( (a=>'bla\,') )."\n";
 }
 
 ######################################
