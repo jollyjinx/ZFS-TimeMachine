@@ -29,11 +29,13 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'deletesnapshotsondestination'			=>	[1,'flag'],
 				
 																	'recursive'								=>	[0,'flag'],
-																	'debug'									=>	[0,'flag'],
 																	'keepbackupshash'						=>	['24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month','string'],
 																	'maximumtimeperfilesystemhash'			=>	['.*=>10yrs,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month','string'],
 
+																	'verbose'								=>	[0,'flag'],
+																	'debug'									=>	[0,'flag'],
 															 }, __PACKAGE__ );
+
 
 
 my $timebuckets								= jnxparsetimeperbuckethash( $commandlineoption{keepbackupshash}	);
@@ -44,6 +46,8 @@ my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};
 
 if( $commandlineoption{debug} )
 {
+	$commandlineoption{verbose}=1;
+	
 	use Data::Dumper;
 
 	print STDERR Data::Dumper->Dumper($timebuckets)."\n";
@@ -69,6 +73,8 @@ my $newsnapshotname = undef;
 if( $commandlineoption{createsnapshotonsource} )
 {
 	$newsnapshotname	= JNX::ZFS::createsnapshotforpool($commandlineoption{sourcepool},$commandlineoption{recursive}) || die "Could not create snapshot on $commandlineoption{sourcepool}";
+
+	print 'Created '.($commandlineoption{recursive}?'recursive ':undef).'snapshot '.$newsnapshotname."\n";
 }
 
 ####
@@ -140,7 +146,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			
 			if( !$lastcommonsnapshot )
 			{
-				print "Could not find common snapshot\n";
+				print "Could not find common snapshot between source ($sourcepool) and destination ($destinationpool)\n";
 				print "Destination snapshots:\n\t".join("\n\t",@destinationsnapshots)."\n";
 				print "Source snapshots:\n\t".join("\n\t",@sourcesnapshots)."\n";
 			
@@ -151,7 +157,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			}
 			else
 			{
-				print 'Last common snapshot:   '.$lastcommonsnapshot."\n";
+				print 'Last common snapshot: '.$lastcommonsnapshot."\n";
 				
 				if( $commandlineoption{deletesnapshotsondestination} )
 				{	
@@ -172,7 +178,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 					
 					if( @snapshotsnewerondestination )
 					{
-						print 'Snapshots newer:',join(',',@snapshotsnewerondestination)."\n";
+						print 'Snapshots newer on destination pool('.$destinationpool.'):'.$snapshotsnewerondestination[0].(@snapshotsnewerondestination>1?' - '.$snapshotsnewerondestination[-1]:undef)."\n";
 						
 						for my $snapshotname (@snapshotsnewerondestination)
 						{
@@ -191,20 +197,20 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 		####
 		if( $lastcommonsnapshot eq $snapshotdate )
 		{
-			print "Did not find newer snapshot on source\n";
+			print "Did not find newer snapshot on source $sourcepool\n" if $commandlineoption{verbose};
 		}
 		else
 		{
 			my $zfssendcommand		= undef;
-			my $zfsreceivecommand	= 'zfs receive -F "'.$destinationpool.'"';
+			my $zfsreceivecommand	= 'zfs receive '.($commandlineoption{verbose}?'-v ':undef).'-F "'.$destinationpool.'"';
 			
 			if( $lastcommonsnapshot )
 			{
-				$zfssendcommand	= 'zfs send '.($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcepool.'@'.$lastcommonsnapshot.'" "'.$sourcepool.'@'.$snapshotdate.'"';
+				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcepool.'@'.$lastcommonsnapshot.'" "'.$sourcepool.'@'.$snapshotdate.'"';
 			}
 			else
 			{
-				$zfssendcommand	= 'zfs send '.($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
+				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
 			}
 			
 			if( $destinationhost )
@@ -256,7 +262,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			{
 				splice(@snapshotstodelete,-1* $snapshotstokeeponsource);
 				
-				print 'Snapshots to delete on source: '.join(',',@snapshotstodelete)."\n";
+				print 'Snapshots to delete on source ('.$sourcepool.'): '.$snapshotstodelete[0].(@snapshotstodelete>1?' - '.$snapshotstodelete[-1]:undef)."\n";
 				
 				sleep 1;
 				for my $snapshotname (@snapshotstodelete)
@@ -298,7 +304,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 					if( $keepsnapshot )
 					{
 						$backupbuckets{$bucket}=$snapshotname;
-						print 'Will keep snapshot:  '.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n"  if $commandlineoption{debug};
+						print 'Will keep snapshot:  '.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n"  if $commandlineoption{verbose};
 					}
 					else
 					{
@@ -309,7 +315,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 				}
 				else
 				{
-					print "snapshot not in YYYY-MM-DD-HHMMSS format: $snapshotname - ignoring\n";
+					print STDERR "snapshot not in YYYY-MM-DD-HHMMSS format: $snapshotname - ignoring\n";
 				}
 			}
 		}
@@ -337,7 +343,7 @@ sub jnxparsetimeperbuckethash
 			my $keytime		= jnxparsesimpletime($key);
 			my $valuetime	= jnxparsesimpletime($value);
 
-		 	print STDERR "Found Keytime: $keytime Valuetime: $valuetime \n";
+		 	print "Found Keytime: $keytime Valuetime: $valuetime \n" if $commandlineoption{verbose};
 
 			if( ($keytime>=0) && ($valuetime>=0) )
 			{
@@ -363,15 +369,15 @@ sub jnxparsetimeperfilesystemhash
 			my($key,$value) = ($1,$2);
 
 			$key =~ s/\\,/,/g;								#	replace \, in case someone has a escaped , inside a left regex
-			#print STDERR "Key: $key Value: $value \n";
+
 			if( $key && $value )
 			{
 				my $valuetime	= jnxparsesimpletime($value);
 
-				print STDERR "Found Filesystem: $key Valuetime: $valuetime \n";
 
 				if( length($key)  && ($valuetime>=0) )
 				{
+					printf "Will use Maximumtime: %8d for filesystem matching:%s\n",$valuetime,$key if $commandlineoption{debug};
 					push(@filesystemarray, [$key,$valuetime] );
 				}
 			}
@@ -386,12 +392,11 @@ sub jnxparsesimpletime
 	my($timestring)	= @_;
 
 	$timestring	= lc $timestring;
-	#print STDERR "timestring:$timestring\n";
 
 	if( $timestring =~ m/(\d+)\s*(s(?:ec|econds?)?|h(?:ours?)?|d(?:ays?)?|w(:?eeks?)?|m(?:on|onths?)|m(?:ins?|inutes?)?|y(?:rs?|ears?)?)/ )
 	{
 		my($count,$time) = ($1,$2);
-		#print STDERR "Found Key: $count Value: $time \n";
+
 		return	$count*3600*24*364.25	if $time =~ /^y/;
 		return	$count*3600*24*30.5		if $time =~ /^mon/;
 		return	$count*3600*24*7		if $time =~ /^w/;
@@ -421,8 +426,10 @@ sub bucketfortime
 	}
 	
 	my $bucket = int($timedistance/$buckettime)*$buckettime;
-#	print "Timedistance: $timedistance , $timetotest, ".localtime($timetotest)." buckettime:$buckettime bucket:$bucket\n";
+	print "Timedistance: $timedistance , $timetotest, ".localtime($timetotest)." buckettime:$buckettime bucket:$bucket\n" if $commandlineoption{debug};
 	
 	return $bucket;
 }
+
+
 
