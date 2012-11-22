@@ -2,7 +2,7 @@
 #
 # purpose:	simple script to automatically scub zpools when needed
 #
-#	example usage: perl autoscrub.perl  --scubinterval=7
+#	example usage: perl autoscrub.perl  --scrubinterval=7
 #
 #	this will start a scrub on all pools if the last scrub was 7 days or longer ago
 #
