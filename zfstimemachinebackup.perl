@@ -214,7 +214,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			
 			if( $destinationhost )
 			{
-				system($zfssendcommand.' | (ssh -C '.$destinationhost.' '.$zfsreceivecommand.')') && die "Can't remote command did fail: $zfssendcommand\n"
+				system($zfssendcommand.' | (ssh -C '.$destinationhost." '".$zfsreceivecommand."')") && die "Can't remote command did fail: $zfssendcommand -> $zfsreceivecommand\n"
 			}
 			else
 			{

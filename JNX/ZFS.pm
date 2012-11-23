@@ -115,7 +115,12 @@ sub getsnapshotsforpoolandhost
 		{
 			if( /^([A-Za-z0-9\_\-\s\/]+)\@(\S+)\s/ )
 			{
+			#	print "Got Snapshot: $host: $1\@$2 \n";
 				push(@{$snapshotmemory{$host}{pools}{$1}},$2) if length $2>0;
+			}
+			else
+			{
+			#	print "Did not match: $_\n";
 			}
 		}
 		close(FILE);
