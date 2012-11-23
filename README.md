@@ -1,4 +1,3 @@
-
 ZFS TimeMachine
 ===============
 
@@ -49,7 +48,7 @@ start the script from the command line with --sourcepool and --destinationpool o
 
 
 Set --recursive if you want to send the pools and all sub pools recursively.
-Set --createsnapshotonsource if you want to create snapshots on the source
+Set --createsnapshotonsource if you want to create snapshots on the source.
 Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
 
 
