@@ -170,7 +170,7 @@ sub destroysnapshotonpoolandhost
 	
 	if( $host )
 	{
-		if( system('ssh -C '.$host.' '.$zfsdestroycommand) )
+		if( system('ssh -C '.$host." '".$zfsdestroycommand."'") )
 		{
 			print STDERR "Could not destroy snapshot: $zfsdestroycommand\n";
 			return undef;
