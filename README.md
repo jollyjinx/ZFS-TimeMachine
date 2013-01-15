@@ -7,8 +7,8 @@ Simple ZFS backup from one pool to another via sending snapshots, deleting old o
 How it works
 ------------
 
-- the script creates a snapshot on the source pool every time it is called.
-- then it figures out the last snapshot on the destination pool that matches to one on the source pool.
+- the script creates a snapshot on the source dataset every time it is called.
+- then it figures out the last snapshot on the destination dataset that matches to one on the source dataset.
 - it sends the snapshot from the source to the destination.
 - removes old snapshots on the source - it keeps just n-snapshots.
 - removes old snapshots on the destination - time machine fashion : 5min/last day, 1 hour last week, 1 day last 3 months, 1 week thereafter
@@ -25,7 +25,7 @@ If you are on a different OS (like linux or bsd) everything should work.
 How to use
 --------------
 
-start the script from the command line with --sourcepool and --destinationpool options.
+start the script from the command line with --sourcedataset and --destinationdataset options.
 
 	$ zfstimemachinebackup.perl --help
 	[zfstimemachinebackup.perl] module options are :
@@ -35,21 +35,21 @@ start the script from the command line with --sourcepool and --destinationpool o
 	--createsnapshotonsource (flag)  default: 0	
 	--debug (number)                 default: 0	
 	--destinationhost (string)       default: 	
-	--destinationpool (string)       default: ocean/puddle	
+	--destinationdataset (string)    default: ocean/puddle	
 	--help (option)                  default: 
 									 current: 1	
 	--replicate (flag)               default: 0	
 	--snapshotstokeeponsource (number) default: 0	
-	--sourcepool (string)            default: puddle
+	--sourcedataset (string)            default: puddle
 
 	--keepbackupshash (string)       default: 24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month	
 	--maximumtimeperfilesystemhash (string) default: .*=>10yrs,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month	
 	--recursive (flag)               default: 0	
 
 
-Set --recursive if you want to send the pools and all sub pools recursively.
+Set --recursive if you want to send the datasets and all sub datasets recursively.
 Set --createsnapshotonsource if you want to create snapshots on the source.
-Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationpool to be created.
+Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationdataset to be created.
 
 
 My current setup looks like this:
@@ -88,13 +88,13 @@ My current setup looks like this:
 /Local is where my home directory lives. The script is called as follows
 	
 
-	$ ./zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
+	$ ./zfstimemachinebackup.perl  --sourcedataset=puddle --destinationdataset=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
 	
 So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
 
 I'm also sending backups from the backupdisk to a remote machine with less space, so I keep backups only for 3 months:
 
-	$ ./zfstimemachinebackup.perl  --sourcepool=ocean/puddle --destinationpool=backups/puddle --destinationhost=server.example.com --recursive --maximumtimeperfilesystemhash='.*=>3months,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month'
+	$ ./zfstimemachinebackup.perl  --sourcedataset=ocean/puddle --destinationdataset=backups/puddle --destinationhost=server.example.com --recursive --maximumtimeperfilesystemhash='.*=>3months,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month'
 
 
 
@@ -138,7 +138,7 @@ If the checkbackupscript can't find out the last sleep and boot time it will bug
 
 It has three options :
 
-	--pools which pool(s) to use comma separated list
+	--datasets which dataset(s) to use comma separated list
 	--snaphotinterval how often do you create snapshots
 	--snapshotime how long it usually take for a snapshot to complete
 	
@@ -149,7 +149,7 @@ It has three options :
 	--debug (number)                 default: 0	
 	--help (option)                  default: 
 									 current: 1	
-	--pools (string)                 default: puddle	
+	--datasets (string)              default: puddle	
 	--snapshotinterval (number)      default: 300	
 	--snapshottime (number)          default: 10
 
@@ -158,8 +158,8 @@ I'm currently using a script at crontab to tell me when things go wrong:
 	
 	#!/bin/zsh
 
-	./checkbackup.perl --pools="puddle/jolly,puddle/jolly/Pictures,puddle/jolly/Library" --snapshotinterval=7200 || say -v alex "pool snapshot for $pool is too old"
-	./checkbackup.perl --pools="example.com:rootpool/puddle/jolly/Pictures" --snapshotinterval=7200 || say -v alex "pool snapshot for $pool is too old"
+	./checkbackup.perl --datasets="puddle/Local,puddle/Local/Users,puddle/Local/Users/jolly,puddle/Local/Users/jolly/Library,puddle/Local/Users/jolly/Disks,puddle/Local/Users/jolly/Pictures" --snapshotinterval=7200 || say -v alex "dataset snapshot on local host is too old"
+	./checkbackup.perl --datasets="example.com:pond/puddle/Local,example.com:pond/puddle/Local/Users,example.com:pond/puddle/Local/Users/jolly,example.com:pond/puddle/Local/Users/jolly/Library,example.com:pond/puddle/Local/Users/jolly/Disks,example.com:pond/puddle/Local/Users/jolly/Pictures" --snapshotinterval=7200 || say -v alex "dataset pond snapshots on example.com are too old"
 
 
 

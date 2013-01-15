@@ -1,16 +1,16 @@
 #!/usr/bin/perl
 # author: 	patrick stein aka jolly
-# purpose:	simple zfs backup from one pool to another via sending snapshots, deleting old ones in time machine style.
+# purpose:	simple zfs backup from one dataset to another via sending snapshots, deleting old ones in time machine style.
 #
-#	the script creates a snapshot on the source pool every time it is called
-# 	then it figures out the last snapshot on the destination pool that matches to one on the source pool
+#	the script creates a snapshot on the source dataset every time it is called
+# 	then it figures out the last snapshot on the destination dataset that matches to one on the source dataset
 #	it sends the snapshot from the source to the destination
 #	removes old snapshots on the source - it keeps just n-snapshots
 #	removes old snapshots on the destination - time machine fashion ( 5min/last day, 1 hour last week, 1 day last 3 months, 1 week thereafter )
 #
 #
 #
-#	example usage: perl zfstimemachinebackup.perl  --sourcepool=puddle --destinationpool=tank/puddle --snapshotstokeeponsource=100 --createsnapshotonsource
+#	example usage: perl zfstimemachinebackup.perl  --sourcedataset=puddle --destinationdataset=tank/puddle --snapshotstokeeponsource=100 --createsnapshotonsource
 #
 
 
@@ -18,10 +18,10 @@
 use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'sourcepool'							=>	['puddle','string'],
+																	'sourcedataset'							=>	['puddle','string'],
 																	'createsnapshotonsource'				=>	[0,'flag'],
 																	'snapshotstokeeponsource'				=>	[0,'number'],
-																	'destinationpool'						=>	['ocean/puddle','string'],
+																	'destinationdataset'					=>	['ocean/puddle','string'],
 																	'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
 																	'deduplicate'							=>	[0,'flag'],
@@ -71,7 +71,7 @@ my $newsnapshotname = undef;
 
 if( $commandlineoption{createsnapshotonsource} )
 {
-	$newsnapshotname	= JNX::ZFS::createsnapshotforpool($commandlineoption{sourcepool},$commandlineoption{recursive}) || die "Could not create snapshot on $commandlineoption{sourcepool}";
+	$newsnapshotname	= JNX::ZFS::createsnapshotfordataset($commandlineoption{sourcedataset},$commandlineoption{recursive}) || die "Could not create snapshot on $commandlineoption{sourcedataset}";
 
 	print 'Created '.($commandlineoption{recursive}?'recursive ':undef).'snapshot '.$newsnapshotname."\n";
 }
@@ -79,23 +79,23 @@ if( $commandlineoption{createsnapshotonsource} )
 ####
 # prevent us from running twice
 ####
-JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineoption{destinationpool}) || die "Already running";
+JNX::System::checkforrunningmyself($commandlineoption{sourcedataset}.$commandlineoption{destinationdataset}) || die "Already running";
 
 
 {
-	my @sourcefilesystems		= ( $commandlineoption{sourcepool} );
+	my @sourcefilesystems		= ( $commandlineoption{sourcedataset} );
 
 	if( $commandlineoption{recursive} )
 	{
-		@sourcefilesystems		= JNX::ZFS::getsubfilesystemsonpool($commandlineoption{sourcepool});
+		@sourcefilesystems		= JNX::ZFS::getsubfilesystemsondataset($commandlineoption{sourcedataset});
 	}
 
 
-	for my $sourcepool (@sourcefilesystems)
+	for my $sourcedataset (@sourcefilesystems)
 	{
-		my $destinationpool	= $sourcepool;
+		my $destinationdataset	= $sourcedataset;
 
-		$destinationpool		=~ s/^\Q$commandlineoption{sourcepool}\E/$commandlineoption{destinationpool}/;
+		$destinationdataset		=~ s/^\Q$commandlineoption{sourcedataset}\E/$commandlineoption{destinationdataset}/;
 
 		my $maximumtimeforfilesystem = 0;
 
@@ -103,25 +103,25 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 		{
 			my($regex,$value) = (@{$regexandvaluearray});
 
-			if( $sourcepool =~ m/$regex/ )
+			if( $sourcedataset =~ m/$regex/ )
 			{
 				$maximumtimeforfilesystem = $value;
-				print "Matched source: $regex $sourcepool\n" if $commandlineoption{debug};
+				print "Matched source: $regex $sourcedataset\n" if $commandlineoption{debug};
 				last REGEXTEST;
 			}
 		}
 
-		print STDERR "Working on Sourcepool: $sourcepool Destinationpool:$destinationpool  Maximumtime:$maximumtimeforfilesystem\n";
+		print STDERR "Working on sourcedataset: $sourcedataset destinationdataset:$destinationdataset  Maximumtime:$maximumtimeforfilesystem\n";
 
 		####
-		# figure out existing snapshots on both pools
+		# figure out existing snapshots on both datasets
 		####
-		my @sourcesnapshots 		= JNX::ZFS::getsnapshotsforpoolandhost($sourcepool,undef);
-		my @destinationsnapshots	= JNX::ZFS::getsnapshotsforpoolandhost($destinationpool,$destinationhost);
+		my @sourcesnapshots 		= JNX::ZFS::getsnapshotsfordatasetandhost($sourcedataset,undef);
+		my @destinationsnapshots	= JNX::ZFS::getsnapshotsfordatasetandhost($destinationdataset,$destinationhost);
 
 		if( ! @sourcesnapshots )
 		{
-			die "Did not find snapshot on source pool";
+			die "Did not find snapshot on source dataset";
 		}
 
 		my $lastsourcesnapshot	= @sourcesnapshots[$#sourcesnapshots];
@@ -145,7 +145,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			
 			if( !$lastcommonsnapshot )
 			{
-				print "Could not find common snapshot between source ($sourcepool) and destination ($destinationpool)\n";
+				print "Could not find common snapshot between source ($sourcedataset) and destination ($destinationdataset)\n";
 				print "Destination snapshots:\n\t".join("\n\t",@destinationsnapshots)."\n";
 				print "Source snapshots:\n\t".join("\n\t",@sourcesnapshots)."\n";
 			
@@ -177,11 +177,11 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 					
 					if( @snapshotsnewerondestination )
 					{
-						print 'Snapshots newer on destination pool('.$destinationpool.'):'.$snapshotsnewerondestination[0].(@snapshotsnewerondestination>1?' - '.$snapshotsnewerondestination[-1]:undef)."\n";
+						print 'Snapshots newer on destination dataset('.$destinationdataset.'):'.$snapshotsnewerondestination[0].(@snapshotsnewerondestination>1?' - '.$snapshotsnewerondestination[-1]:undef)."\n";
 						
 						for my $snapshotname (@snapshotsnewerondestination)
 						{
-							JNX::ZFS::destroysnapshotonpoolandhost($snapshotname,$destinationpool,$destinationhost);
+							JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$destinationdataset,$destinationhost);
 							
 							@destinationsnapshots = grep(!/^\Q$snapshotname\E$/,@destinationsnapshots); # grep as delete @destinationsnapshots[$snapshotname] works only on hashes.
 						}
@@ -196,20 +196,20 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 		####
 		if( $lastcommonsnapshot eq $snapshotdate )
 		{
-			print "Did not find newer snapshot on source $sourcepool\n" if $commandlineoption{verbose};
+			print "Did not find newer snapshot on source $sourcedataset\n" if $commandlineoption{verbose};
 		}
 		else
 		{
 			my $zfssendcommand		= undef;
-			my $zfsreceivecommand	= 'zfs receive '.($commandlineoption{verbose}?'-v ':undef).'-F "'.$destinationpool.'"';
+			my $zfsreceivecommand	= 'zfs receive '.($commandlineoption{verbose}?'-v ':undef).'-F "'.$destinationdataset.'"';
 			
 			if( $lastcommonsnapshot )
 			{
-				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcepool.'@'.$lastcommonsnapshot.'" "'.$sourcepool.'@'.$snapshotdate.'"';
+				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcedataset.'@'.$lastcommonsnapshot.'" "'.$sourcedataset.'@'.$snapshotdate.'"';
 			}
 			else
 			{
-				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcepool.'@'.$snapshotdate.'"';
+				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcedataset.'@'.$snapshotdate.'"';
 			}
 			
 			if( $destinationhost )
@@ -220,7 +220,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			{
 				# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
 
-				my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcepool.$destinationpool);
+				my $zfsbugworkaroundintermediatefifo = JNX::System::temporaryfilename($snapshotdate,$sourcedataset.$destinationdataset);
 				
 				unlink($zfsbugworkaroundintermediatefifo);
 				system('mkfifo '."$zfsbugworkaroundintermediatefifo")	&& die "Could not create fifo: $zfsbugworkaroundintermediatefifo";	
@@ -261,14 +261,14 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 			{
 				splice(@snapshotstodelete,-1* $snapshotstokeeponsource);
 				
-				print 'Snapshots to delete on source ('.$sourcepool.'): '.$snapshotstodelete[0].(@snapshotstodelete>1?' - '.$snapshotstodelete[-1]:undef)."\n";
+				print 'Snapshots to delete on source ('.$sourcedataset.'): '.$snapshotstodelete[0].(@snapshotstodelete>1?' - '.$snapshotstodelete[-1]:undef)."\n";
 				
 				sleep 1;
 				for my $snapshotname (@snapshotstodelete)
 				{
 					if( length($snapshotname) )
 					{
-						JNX::ZFS::destroysnapshotonpoolandhost($snapshotname,$sourcepool);
+						JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$sourcedataset);
 					}
 				}
 			}
@@ -309,7 +309,7 @@ JNX::System::checkforrunningmyself($commandlineoption{sourcepool}.$commandlineop
 					{
 						print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
 						
-						JNX::ZFS::destroysnapshotonpoolandhost($snapshotname,$destinationpool,$destinationhost)  if !$commandlineoption{debug}
+						JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$destinationdataset,$destinationhost)  if !$commandlineoption{debug}
 					}
 				}
 				else

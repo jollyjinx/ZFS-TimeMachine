@@ -8,13 +8,13 @@ use POSIX qw(strftime);
 
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
-sub getpoolandhost
+sub getdatasetandhost
 {
-	my($pool,$host) = @_;
+	my($dataset,$host) = @_;
 	
 	if( !$host )
 	{
-		my @array = split( /:/ , $pool );
+		my @array = split( /:/ , $dataset );
 		
 		if( 2 == @array )
 		{
@@ -22,7 +22,7 @@ sub getpoolandhost
 			return (@array[1],@array[0]);
 		}
 	}
-	return ($pool,$host);
+	return ($dataset,$host);
 }
 
 
@@ -68,13 +68,13 @@ sub pools
 	return \%pools;
 }
 
-sub createsnapshotforpool
+sub createsnapshotfordataset
 {
-	my($pool,$recursive)		= @_;
+	my($dataset,$recursive)		= @_;
 		
 	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
-	my $snapshotname	= $pool.'@'.$snapshotdate;
+	my $snapshotname	= $dataset.'@'.$snapshotdate;
 	
 	if( system('zfs snapshot '.($recursive?'-r ':'').'"'.$snapshotname.'"') )
 	{
@@ -82,7 +82,7 @@ sub createsnapshotforpool
 		return undef;
 	}
 	
-	my @snapshots = getsnapshotsforpool($pool);
+	my @snapshots = getsnapshotsfordataset($dataset);
 	
 	for my $name (reverse @snapshots)
 	{
@@ -92,17 +92,17 @@ sub createsnapshotforpool
 	return undef;
 }
 
-sub getsnapshotsforpool
+sub getsnapshotsfordataset
 {
-	return getsnapshotsforpoolandhost(getpoolandhost(@_));
+	return getsnapshotsfordatasetandhost(getdatasetandhost(@_));
 }
 
 
 my	%snapshotmemory;
 
-sub getsnapshotsforpoolandhost
+sub getsnapshotsfordatasetandhost
 {
-	my($pool,$host)		= @_;
+	my($dataset,$host)		= @_;
 
 	$host='localhost' if !length($host);
 
@@ -116,7 +116,7 @@ sub getsnapshotsforpoolandhost
 			if( /^([A-Za-z0-9\_\-\s\/]+)\@(\S+)\s/ )
 			{
 			#	print "Got Snapshot: $host: $1\@$2 \n";
-				push(@{$snapshotmemory{$host}{pools}{$1}},$2) if length $2>0;
+				push(@{$snapshotmemory{$host}{datasets}{$1}},$2) if length $2>0;
 			}
 			else
 			{
@@ -131,18 +131,18 @@ sub getsnapshotsforpoolandhost
 	{
 		# print STDERR "Serving from cache\n";
 	}
-	my $snapshotsref = $snapshotmemory{$host}{pools}{$pool};
+	my $snapshotsref = $snapshotmemory{$host}{datasets}{$dataset};
 
 	return $snapshotsref?@{$snapshotsref}:();
 }
 
-sub getsubfilesystemsonpool
+sub getsubfilesystemsondataset
 {
-	my($pool) = @_;
+	my($dataset) = @_;
 
-	getsnapshotsforpoolandhost($pool);
+	getsnapshotsfordatasetandhost($dataset);
 
-	return sort{ length($a)<=>length($b) }(grep(/^\Q$pool\E/, keys( %{$snapshotmemory{'localhost'}{pools}} )) );
+	return sort{ length($a)<=>length($b) }(grep(/^\Q$dataset\E/, keys( %{$snapshotmemory{'localhost'}{datasets}} )) );
 }
 
 sub timeofsnapshot
@@ -161,12 +161,12 @@ sub timeofsnapshot
 
 
 
-sub destroysnapshotonpoolandhost
+sub destroysnapshotondatasetandhost
 {
 	my($snapshot,@otherargs)	= @_;
-	my($pool,$host)		= getpoolandhost(@otherargs);
+	my($dataset,$host)		= getdatasetandhost(@otherargs);
 
-	my $zfsdestroycommand = 'zfs destroy "'.$pool.'@'.$snapshot.'"';
+	my $zfsdestroycommand = 'zfs destroy "'.$dataset.'@'.$snapshot.'"';
 	
 	if( $host )
 	{
