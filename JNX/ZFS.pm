@@ -108,7 +108,7 @@ sub getsnapshotsfordatasetandhost
 
 	if( time()-$snapshotmemory{$host}{lasttime} > 500 )
 	{
-		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot |') || die "can't read snapshots: $!";
+		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot -o name -s name |') || die "can't read snapshots: $!";
 		delete $snapshotmemory{$host};
 
 		while( $_ = <FILE>)
