@@ -81,6 +81,17 @@ if( $commandlineoption{createsnapshotonsource} )
 ####
 JNX::System::checkforrunningmyself($commandlineoption{sourcedataset}.$commandlineoption{destinationdataset}) || die "Already running";
 
+if( my $childpid = fork() )
+{
+	print "Waiting for working child to exit\n" if $commandlineoption{debug};
+	wait;
+	
+	print "Child work done, deleting pid file\n" if $commandlineoption{debug};
+	my $pidfile = JNX::System::pidfilename($commandlineoption{sourcedataset}.$commandlineoption{destinationdataset});
+	unlink($pidfile);
+	exit;
+}
+
 
 {
 	my @sourcefilesystems		= ( $commandlineoption{sourcedataset} );
