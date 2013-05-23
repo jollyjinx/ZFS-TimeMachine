@@ -40,6 +40,7 @@ start the script from the command line with --sourcedataset and --destinationdat
 									 current: 1	
 	--replicate (flag)               default: 0	
 	--snapshotstokeeponsource (number) default: 0	
+	--minimumtimetokeepsnapshotsonsource (string) default: 	
 	--sourcedataset (string)            default: puddle
 
 	--keepbackupshash (string)       default: 24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month	
@@ -51,6 +52,7 @@ Set --recursive if you want to send the datasets and all sub datasets recursivel
 Set --createsnapshotonsource if you want to create snapshots on the source.
 Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationdataset to be created.
 
+The option snapshotstokeeponsource means that at least count snapshots are kept on source. Snapshots that exceed that number will be removed if source and destination have at least one snapshot in common. If you additionally to the snapshotstokeeponsource set the minimumtimetokeepsnapshotsonsource you can set the time snapshots are kept on the source even if they exceed the number of snapshotstokeeponsource.
 
 My current setup looks like this:
 

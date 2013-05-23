@@ -21,6 +21,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'sourcedataset'							=>	['puddle','string'],
 																	'createsnapshotonsource'				=>	[0,'flag'],
 																	'snapshotstokeeponsource'				=>	[0,'number'],
+																	'minimumtimetokeepsnapshotsonsource'	=>	['','string'],
 																	'destinationdataset'					=>	['ocean/puddle','string'],
 																	'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
@@ -42,6 +43,7 @@ my $timebuckets								= jnxparsetimeperbuckethash( $commandlineoption{keepbacku
 my @maximumtimebuckets						= jnxparsetimeperfilesystemhash( $commandlineoption{maximumtimeperfilesystemhash}	);
 my $destinationhost							= $commandlineoption{destinationhost};
 my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};	
+my $minimumtimetokeepsnapshotsonsource		= jnxparsesimpletime( $commandlineoption{minimumtimetokeepsnapshotsonsource} );
 
 
 if( $commandlineoption{debug} )
@@ -274,12 +276,22 @@ if( my $childpid = fork() )
 				
 				print 'Snapshots to delete on source ('.$sourcedataset.'): '.$snapshotstodelete[0].(@snapshotstodelete>1?' - '.$snapshotstodelete[-1]:undef)."\n";
 				
-				sleep 1;
 				for my $snapshotname (@snapshotstodelete)
 				{
 					if( length($snapshotname) )
 					{
-						JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$sourcedataset);
+						if( $minimumtimetokeepsnapshotsonsource > 0 )
+						{
+							my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname);
+							if( $snapshottime < time()-$minimumtimetokeepsnapshotsonsource )
+							{
+								JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$sourcedataset);
+							}
+						}
+						else
+						{
+							JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$sourcedataset);
+						}
 					}
 				}
 			}
