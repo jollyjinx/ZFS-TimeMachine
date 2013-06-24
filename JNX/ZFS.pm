@@ -106,31 +106,23 @@ sub getsnapshotsfordatasetandhost
 
 	$host='localhost' if !length($host);
 
-	if( time()-$snapshotmemory{$host}{lasttime} > 500 )
-	{
-		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot -o name -s name |') || die "can't read snapshots: $!";
-		delete $snapshotmemory{$host};
+	open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot -o name -s name -r '.$dataset.' |') || die "can't read snapshots: $!";
+	delete $snapshotmemory{$host};
 
-		while( $_ = <FILE>)
+	while( $_ = <FILE>)
+	{
+		if( /^([A-Za-z0-9\.\_\-\s\/]+)\@(\S+)\s/ )
 		{
-			if( /^([A-Za-z0-9\.\_\-\s\/]+)\@(\S+)\s/ )
-			{
-			#	print "Got Snapshot: $host: $1\@$2 \n";
-				push(@{$snapshotmemory{$host}{datasets}{$1}},$2) if length $2>0;
-			}
-			else
-			{
-			#	print "Did not match: $_\n";
-			}
+		#	print "Got Snapshot: $host: $1\@$2 \n";
+			push(@{$snapshotmemory{$host}{datasets}{$1}},$2) if length $2>0;
 		}
-		close(FILE);
+		else
+		{
+		#	print "Did not match: $_\n";
+		}
+	}
+	close(FILE);
 
-		$snapshotmemory{$host}{lasttime}=time();
-	}
-	else
-	{
-		# print STDERR "Serving from cache\n";
-	}
 	my $snapshotsref = $snapshotmemory{$host}{datasets}{$dataset};
 
 	return $snapshotsref?@{$snapshotsref}:();
