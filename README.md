@@ -1,7 +1,7 @@
 ZFS TimeMachine
 ===============
 
-Simple ZFS backup from one pool to another via sending snapshots, deleting old ones in time machine style. I'm using a Mac with TensCompliments ZFS implementation on my Mac and Mac and FreeBSD as destination hosts.
+Time Machine style backups for ZFS users. It will backup from one pool to another host or pool by sending snapshots, deleting old ones in time machine style. I'm using a Mac as my primary ZFS machine and use Macs and FreeBSD as destination hosts.
 
 
 How it works
@@ -18,7 +18,7 @@ Requirements
 ------------
 It requires perl and the Time::Local and Date::Parse libraries. If you are on a Mac you can install them by using the command line:
 
-	$export PERL_MM_USE_DEFAULT=1 ; perl -MCPAN -e 'install Date::Parse' 'install Time::Local'
+	$ export PERL_MM_USE_DEFAULT=1 ; perl -MCPAN -e 'install Date::Parse' 'install Time::Local'
 
 If you are on a different OS (like linux or bsd) everything should work.
 
@@ -30,11 +30,11 @@ start the script from the command line with --sourcedataset and --destinationdat
 	$ zfstimemachinebackup.perl --help
 	[zfstimemachinebackup.perl] module options are :
 	--configurationfilename (string) default: config.ini
-									 current: not used as Config:IniFiles module not present	
-	--createdestinationsnapshotifneeded (flag) default: 1	
-	--createsnapshotonsource (flag)  default: 0	
-	--debug (number)                 default: 0	
-	--destinationhost (string)       default: 	
+									 current: not used as Config:IniFiles module not present
+	--createdestinationsnapshotifneeded (flag) default: 1
+	--createsnapshotonsource (flag)  default: 0
+	--debug (number)                 default: 0
+	--destinationhost (string)       default:
 	--destinationdataset (string)    default: ocean/puddle	
 	--help (option)                  default: 
 									 current: 1	
@@ -57,42 +57,23 @@ The option snapshotstokeeponsource means that at least count snapshots are kept 
 My current setup looks like this:
 
 	$ zfs list
-	puddle                                                           207Gi   214Gi   864Ki  /Volumes/puddle
-	puddle/Local                                                     207Gi   214Gi  2.50Gi  /Local
-	puddle/Local/Users                                               204Gi   214Gi   891Mi  /Local/Users
-	puddle/Local/Users/jolly                                         204Gi   214Gi  50.4Gi  /Local/Users/jolly
-	puddle/Local/Users/jolly/Disks                                  22.4Gi   214Gi  22.3Gi  /Local/Users/jolly/Disks
-	puddle/Local/Users/jolly/Downloads                              1.62Gi   214Gi  1.62Gi  /Local/Users/jolly/Downloads
-	puddle/Local/Users/jolly/Dropbox                                3.53Gi   214Gi  3.53Gi  /Local/Users/jolly/Dropbox
-	puddle/Local/Users/jolly/Library                                44.6Gi   214Gi  28.3Gi  /Local/Users/jolly/Library
-	puddle/Local/Users/jolly/Library/Caches                         2.05Gi   214Gi  2.04Gi  /Local/Users/jolly/Library/Caches
-	puddle/Local/Users/jolly/Library/Logs                           72.2Mi   214Gi  70.4Mi  /Local/Users/jolly/Library/Logs
-	puddle/Local/Users/jolly/Library/Mail                           13.8Gi   214Gi  13.7Gi  /Local/Users/jolly/Library/Mail
-	puddle/Local/Users/jolly/Library/Mail Downloads                  868Ki   214Gi   868Ki  /Local/Users/jolly/Library/Mail Downloads
-	puddle/Local/Users/jolly/Library/Saved Application State        50.8Mi   214Gi  9.38Mi  /Local/Users/jolly/Library/Saved Application State
-	puddle/Local/Users/jolly/Pictures                               80.4Gi   214Gi  80.4Gi  /Local/Users/jolly/Pictures
-	ocean                                                           1.24Ti   567Gi   266Ki  /Volumes/ocean
-	ocean/puddle                                                     635Gi   567Gi   187Ki  /Volumes/ocean/puddle
-	ocean/puddle/Local                                               635Gi   567Gi  1.76Gi  /Volumes/ocean/puddle/Local
-	ocean/puddle/Local/Users                                         632Gi   567Gi   539Mi  /Volumes/ocean/puddle/Local/Users
-	ocean/puddle/Local/Users/jolly                                   631Gi   567Gi  49.8Gi  /Volumes/ocean/puddle/Local/Users/jolly
-	ocean/puddle/Local/Users/jolly/Disks                            48.0Gi   567Gi  22.1Gi  /Volumes/ocean/puddle/Local/Users/jolly/Disks
-	ocean/puddle/Local/Users/jolly/Downloads                        1.62Gi   567Gi  1.62Gi  /Volumes/ocean/puddle/Local/Users/jolly/Downloads
-	ocean/puddle/Local/Users/jolly/Dropbox                          4.42Gi   567Gi  3.47Gi  /Volumes/ocean/puddle/Local/Users/jolly/Dropbox
-	ocean/puddle/Local/Users/jolly/Library                          93.7Gi   567Gi  22.6Gi  /Volumes/ocean/puddle/Local/Users/jolly/Library
-	ocean/puddle/Local/Users/jolly/Library/Caches                   1.90Gi   567Gi  1.90Gi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Caches
-	ocean/puddle/Local/Users/jolly/Library/Logs                     65.2Mi   567Gi  65.1Mi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Logs
-	ocean/puddle/Local/Users/jolly/Library/Mail                     18.6Gi   567Gi  11.2Gi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Mail
-	ocean/puddle/Local/Users/jolly/Library/Mail Downloads            210Ki   567Gi   208Ki  /Volumes/ocean/puddle/Local/Users/jolly/Library/Mail Downloads
-	ocean/puddle/Local/Users/jolly/Library/Saved Application State  12.4Mi   567Gi  5.83Mi  /Volumes/ocean/puddle/Local/Users/jolly/Library/Saved Application State
-	ocean/puddle/Local/Users/jolly/Pictures                         85.7Gi   567Gi  73.8Gi  /Volumes/ocean/puddle/Local/Users/jolly/Pictures
+	puddle                           282Gi  82.4Gi   728Ki  /Volumes/puddle
+	puddle/Local                     281Gi  82.4Gi   134Gi  /Local
+	puddle/Local/Disks              26.8Gi  82.4Gi  21.7Gi  /Local/Users/jolly/Disks
+	puddle/Local/Pictures           92.6Gi  82.4Gi  92.3Gi  /Local/Users/jolly/Pictures
+	ocean                           1.47Ti   327Gi   182Ki  /Volumes/ocean
+	ocean/Movies                     995Gi   327Gi   995Gi  /Volumes/ocean/Movies
+	ocean/puddle                     509Gi   327Gi   164Ki  /Volumes/ocean/puddle
+	ocean/puddle/Local               509Gi   327Gi   127Gi  /Volumes/ocean/puddle/Local
+	ocean/puddle/Local/Disks        43.7Gi   327Gi  21.6Gi  /Volumes/ocean/puddle/Local/Disks
+	ocean/puddle/Local/Pictures      104Gi   327Gi  91.1Gi  /Volumes/ocean/puddle/Local/Pictures
 
 /Local is where my home directory lives. The script is called as follows
 	
 
-	$ ./zfstimemachinebackup.perl  --sourcedataset=puddle --destinationdataset=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
+	$ ./zfstimemachinebackup.perl --sourcedataset="puddle"  --destinationdataset="ocean/puddle" --snapshotstokeeponsource=100 --minimumtimetokeepsnapshotsonsource=10days --recursive
 	
-So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
+So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself or 10 days if we have not had 100 snapshots within 10 days.
 
 I'm also sending backups from the backupdisk to a remote machine with less space, so I keep backups only for 3 months:
 
@@ -161,7 +142,7 @@ I'm currently using a script at crontab to tell me when things go wrong:
 	#!/bin/zsh
 
 	./checkbackup.perl --datasets="puddle/Local,puddle/Local/Users,puddle/Local/Users/jolly,puddle/Local/Users/jolly/Library,puddle/Local/Users/jolly/Disks,puddle/Local/Users/jolly/Pictures" --snapshotinterval=7200 || say -v alex "dataset snapshot on local host is too old"
-	./checkbackup.perl --datasets="example.com:pond/puddle/Local,example.com:pond/puddle/Local/Users,example.com:pond/puddle/Local/Users/jolly,example.com:pond/puddle/Local/Users/jolly/Library,example.com:pond/puddle/Local/Users/jolly/Disks,example.com:pond/puddle/Local/Users/jolly/Pictures" --snapshotinterval=7200 || say -v alex "dataset pond snapshots on example.com are too old"
+	./checkbackup.perl --datasets="example.com:pond/puddle/Local,example.com:pond/puddle/Local/Users,example.com:pond/puddle/Local/Users/jolly/Disks,example.com:pond/puddle/Local/Users/jolly/Pictures" --snapshotinterval=7200 || say -v alex "dataset pond snapshots on example.com are too old"
 
 
 
