@@ -106,43 +106,67 @@ sub getsnapshotsfordatasetandhost
 
 	$host='localhost' if !length($host);
 
-	if( time()-$snapshotmemory{$host}{lasttime} > 500 )
+	if( time()-$snapshotmemory{$host}{lasttime}{$dataset} > 500 )
 	{
-		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot -o name -s name |') || die "can't read snapshots: $!";
+		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot -o name -s name -d 1 -r "'.$dataset.'" |') || die "can't read snapshots: $!";
 		delete $snapshotmemory{$host};
 
 		while( $_ = <FILE>)
 		{
-			if( /^([A-Za-z0-9\.\_\-\s\/]+)\@(\S+)\s/ )
+			if( /^([A-Za-z0-9\_\-\s\/]+)\@(\S+)\s/ )
 			{
-			#	print "Got Snapshot: $host: $1\@$2 \n";
+				print STDERR "Got Snapshot: $host: $1\@$2 \n";
 				push(@{$snapshotmemory{$host}{datasets}{$1}},$2) if length $2>0;
 			}
 			else
 			{
-			#	print "Did not match: $_\n";
+			#	print STDERR "Did not match: $_\n";
 			}
 		}
 		close(FILE);
 
-		$snapshotmemory{$host}{lasttime}=time();
+		$snapshotmemory{$host}{lasttime}{$dataset}=time();
 	}
 	else
 	{
-		# print STDERR "Serving from cache\n";
+		print STDERR "Serving from cache\n";
 	}
 	my $snapshotsref = $snapshotmemory{$host}{datasets}{$dataset};
 
 	return $snapshotsref?@{$snapshotsref}:();
 }
 
+
+my %datasetcache;
+
 sub getsubfilesystemsondataset
 {
 	my($dataset) = @_;
 
-	getsnapshotsfordatasetandhost($dataset);
-
-	return sort{ length($a)<=>length($b) }(grep(/^\Q$dataset\E/, keys( %{$snapshotmemory{'localhost'}{datasets}} )) );
+	if( time()-$datasetcache{cachetime} > 500 )
+	{
+		my @datasets;
+	
+		open(FILE,'zfs list -H -r -o name "'.$dataset.'" |') || die "can't read dataset names: $!";
+		while( $_ = <FILE> )
+		{
+			chomp;
+			if( /^([A-Za-z0-9\_\-\s\/]+)$/ )
+			{
+				# print STDERR "Got dataset name $1\n";
+				push(@datasets,$1);
+			}
+			else
+			{
+				print STDERR "Did not match: $_\n";
+			}
+		}
+		close(FILE);
+		
+		$datasetcache{datasets}=\@datasets;
+		$datasetcache{cachetime}=time();
+	}
+	return grep(/^\Q$dataset\E/, @{$datasetcache{datasets}});
 }
 
 sub timeofsnapshot

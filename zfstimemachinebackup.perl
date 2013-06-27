@@ -101,6 +101,8 @@ if( my $childpid = fork() )
 	if( $commandlineoption{recursive} )
 	{
 		@sourcefilesystems		= JNX::ZFS::getsubfilesystemsondataset($commandlineoption{sourcedataset});
+		
+		print 'Got sourcefilesystems:'.join("\n\t",@sourcefilesystems)."\n" if $commandlineoption{verbose};
 	}
 
 
