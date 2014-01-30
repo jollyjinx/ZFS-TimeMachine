@@ -1,40 +1,35 @@
 package JNX::ZFS;
-
 use strict;
 use Time::Local qw(timelocal);
 use Date::Parse qw(str2time);
 use POSIX qw(strftime);
 
 
+
+use JNX::Configuration;
+
+my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
+																	'verbose'								=>	[0,'flag'],
+																	'debug'									=>	[0,'flag'],
+															 }, __PACKAGE__ );
+
+
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
-sub getdatasetandhost
-{
-	my($dataset,$host) = @_;
-	
-	if( !$host )
-	{
-		my @array = split( /:/ , $dataset );
-		
-		if( 2 == @array )
-		{
-			
-			return (@array[1],@array[0]);
-		}
-	}
-	return ($dataset,$host);
-}
+
+
+=head1 ZFS::pools
+
+return hash of %{poolname}{scanerrors => \d ,lastscrub => time, status => string }
+=cut
 
 
 sub pools
 {
-	open(FILE,'zpool status|') || die "Can't list pools";
-	
 	my %pools;
-
 	my($poolname,$status,$lastscrub);
 
-	while( $_ = <FILE> )
+	foreach (JNX::System::executecommand( @_, command=>'zpool status'))
 	{
 		$poolname	= $1	if /^\s*pool:\s*(\S+)/i;
 		$status		= $1	if /^\s*state:\s*(\S+)/i;
@@ -63,97 +58,129 @@ sub pools
 			$lastscrub	= undef;
 		}
 	}
-	close(FILE);
-	
 	return \%pools;
 }
 
-sub createsnapshotfordataset
-{
-	my($dataset,$recursive)		= @_;
-		
-	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
 
-	my $snapshotname	= $dataset.'@'.$snapshotdate;
+
+=head1 ZFS::createsnapshot
+
+Creates a snapshot with the current date on the given host and dataset
 	
-	if( system('zfs snapshot '.($recursive?'-r ':'').'"'.$snapshotname.'"') )
-	{
-		print STDERR 'Could not create snapshot:'.$snapshotname."\n";
-		return undef;
-	}
-	
-	my @snapshots = getsnapshotsfordataset($dataset);
+Arguments:	{dataset,recursive}
+
+Arguments are also given to System::executecommand()
+
+Returns: undef or snapshotname in 'YYYY-mm-dd-HHMMSS' format
+=cut
+
+
+sub createsnapshot
+{
+	my %arguments = @_;
+
+	return undef if !length( $arguments{dataset} );
+
+	my $snapshotdate	= strftime "%Y-%m-%d-%H%M%S", localtime;
+	my $snapshotname	= $arguments{dataset}.'@'.$snapshotdate;
+
+	return undef if !defined(JNX::System::executecommand( %arguments, command => 'zfs snapshot '.($arguments{recursive}?'-r ':'').'"'.$arguments{dataset}.'@'.$snapshotdate.'"'));
+
+	print STDERR "Created Snapshot: $snapshotname\n" if $commandlineoption{verbose};
+
+	my @snapshots = getsnapshotsfordataset( %arguments );
 	
 	for my $name (reverse @snapshots)
 	{
+		print STDERR "Testing Snapshot: $name\n" if $commandlineoption{verbose};
 		return $snapshotname if $name eq $snapshotdate;
 	}
 	print STDERR 'Could not create snapshot:'.$snapshotname."\n";
 	return undef;
 }
 
+
+=head1 ZFS::getsnapshotsfordataset
+
+Gets a list of snaphots for the host and datset
+
+Arguments:	{dataset}
+
+Arguments are also given to System::executecommand()
+
+Returns: a list of snapshots for the given dataset
+=cut
+my %snapshotcache;
+my %datasetcache;
+
+
 sub getsnapshotsfordataset
 {
-	return getsnapshotsfordatasetandhost(getdatasetandhost(@_));
-}
+	my %arguments = @_;
+
+	return undef if !length( $arguments{dataset} );
+	$arguments{host} = 'localhost' if !length( $arguments{host} );
 
 
-my	%snapshotmemory;
-
-sub getsnapshotsfordatasetandhost
-{
-	my($dataset,$host)		= @_;
-
-	$host='localhost' if !length($host);
-
-	if( time()-$snapshotmemory{$host}{lasttime}{$dataset} > 500 )
+	if( time()-$snapshotcache{$arguments{host}}{lasttime}{$arguments{dataset}} > 500 )
 	{
-		open(FILE,($host ne 'localhost'?'ssh '.$host.' ':'').'zfs list -t snapshot -o name -s name -d 1 -r "'.$dataset.'" |') || die "can't read snapshots: $!";
-		delete $snapshotmemory{$host};
+		delete $snapshotcache{$arguments{host}};
+		$snapshotcache{$arguments{host}}{lasttime}{$arguments{dataset}}=time();
 
-		while( $_ = <FILE>)
+		for (JNX::System::executecommand( %arguments, command => 'zfs list -H -t snapshot -o name -s name -d 1 -r "'.$arguments{dataset}.'"'))
 		{
-			if( /^([A-Za-z0-9\_\-\s\/]+)\@(\S+)\s/ )
+			if( /^([A-Za-z0-9\_\-\s\/\.]+)\@(\S+)\s/ )
 			{
-				print STDERR "Got Snapshot: $host: $1\@$2 \n";
-				push(@{$snapshotmemory{$host}{datasets}{$1}},$2) if length $2>0;
+				print STDERR "Got Snapshot: $arguments{host}: $1\@$2 \n";
+				push(@{$snapshotcache{$arguments{host}}{datasets}{$1}},$2) if length $2>0;
 			}
 			else
 			{
 			#	print STDERR "Did not match: $_\n";
 			}
 		}
-		close(FILE);
-
-		$snapshotmemory{$host}{lasttime}{$dataset}=time();
 	}
 	else
 	{
 		print STDERR "Serving from cache\n";
 	}
-	my $snapshotsref = $snapshotmemory{$host}{datasets}{$dataset};
+	my $snapshotsref = $snapshotcache{$arguments{host}}{datasets}{$arguments{dataset}};
 
 	return $snapshotsref?@{$snapshotsref}:();
 }
 
 
-my %datasetcache;
 
-sub getsubfilesystemsondataset
+
+
+=head1 ZFS::getsubdatasets
+
+Returns a list of datasets that are equal and below a given one
+
+Arguments:	{dataset}
+
+Arguments are also given to System::executecommand()
+=cut
+
+
+sub getsubdatasets
 {
-	my($dataset) = @_;
+	my %arguments = @_;
 
-	if( time()-$datasetcache{cachetime} > 500 )
+	return undef if !length( $arguments{dataset} );
+	$arguments{host} = 'localhost' if !length( $arguments{host} );
+
+	if( time()-$datasetcache{$arguments{host}}{cachetime} > 500 )
 	{
+		$datasetcache{$arguments{host}}{cachetime}=time();
+
 		my @datasets;
 	
-		open(FILE,'zfs list -H -r -o name "'.$dataset.'" |') || die "can't read dataset names: $!";
-		while( $_ = <FILE> )
+		for (JNX::System::executecommand( %arguments, command => 'zfs list -H -r -o name') )
 		{
 			chomp;
-			if( /^([A-Za-z0-9\_\-\s\/]+)$/ )
+			if( /^([A-Za-z0-9\_\-\s\/\.]+)$/ )
 			{
-				# print STDERR "Got dataset name $1\n";
 				push(@datasets,$1);
 			}
 			else
@@ -161,13 +188,15 @@ sub getsubfilesystemsondataset
 				print STDERR "Did not match: $_\n";
 			}
 		}
-		close(FILE);
 		
-		$datasetcache{datasets}=\@datasets;
-		$datasetcache{cachetime}=time();
+		$datasetcache{$arguments{host}}{datasets}=\@datasets;
 	}
-	return grep(/^\Q$dataset\E/, @{$datasetcache{datasets}});
+	return grep(/^\Q$arguments{dataset}\E/, @{$datasetcache{$arguments{host}}{datasets}});
 }
+
+
+
+
 
 sub timeofsnapshot
 {
@@ -184,32 +213,42 @@ sub timeofsnapshot
 }
 
 
+=head1 ZFS::destroysnapshots
 
-sub destroysnapshotondatasetandhost
+Destroys a snapshots or list of snapshots ( dataset@snapshotname )
+
+Arguments:	{ snapshot }
+
+Arguments are also given to System::executecommand()
+=cut
+
+sub destroysnapshots
 {
-	my($snapshot,@otherargs)	= @_;
-	my($dataset,$host)		= getdatasetandhost(@otherargs);
+	my %arguments = @_;
 
-	my $zfsdestroycommand = 'zfs destroy "'.$dataset.'@'.$snapshot.'"';
-	
-	if( $host )
+	return undef if !$arguments{dataset};
+	return undef if !$arguments{snapshots};
+
+	$arguments{host} = 'localhost' if !length( $arguments{host} );
+	delete $snapshotcache{$arguments{host}};
+
+	my @snapshotstodelete;
+
+	if( ref($arguments{snapshots}) eq "ARRAY" )
 	{
-		if( system('ssh -C '.$host." '".$zfsdestroycommand."'") )
-		{
-			print STDERR "Could not destroy snapshot: $zfsdestroycommand\n";
-			return undef;
-		}
+		@snapshotstodelete = @{$arguments{snapshots}};
 	}
 	else
 	{
-		if( system($zfsdestroycommand) )
-		{
-			print STDERR "Could not destroy snapshot: $zfsdestroycommand";
-			return undef;
-		}
-	}		
+		@snapshotstodelete = ($arguments{snapshots});
+	}
 	
-	return 1;
+
+
+	foreach my $snapshot (@snapshotstodelete)
+	{
+		JNX::System::executecommand( %arguments, command => 'zfs destroy "'.$arguments{dataset}.'@'.$snapshot.'"', debug=>$commandlineoption{debug} );
+	}
 }
 
 

@@ -6,6 +6,13 @@ use English;
 use Date::Parse qw(str2time);
 use Digest::MD5 qw(md5_hex);
 
+use JNX::Configuration;
+
+my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
+																	'verbose'								=>	[0,'flag'],
+																	'debug'									=>	[0,'flag'],
+															 }, __PACKAGE__ );
+
 
 sub boottime
 {
@@ -111,6 +118,54 @@ sub checkforrunningmyself
         close(FILE);
 
         return 1;
+}
+
+
+=head2	System::executecommand()
+
+	Executes a command either locally or remotely
+=head3	Arguments:
+
+	A hash the following keys are used:	command, host, hostoptions
+
+=head3 Returns:
+	in scalar context returns the output of the command as string
+	in array context returns the output in lines
+
+	in $? returns exit value
+
+=cut
+
+sub executecommand
+{
+	my %arguments = @_;
+
+	my $command = $arguments{command};
+
+	return undef if !length($command);
+
+	if( $arguments{host} && ( lc($arguments{host}) ne 'localhost') )
+	{
+		$command = 'ssh '.$arguments{hostoptions}.' '.$arguments{host}." '".$arguments{command}."'";
+	}
+	if( $arguments{inputfile} || $arguments{outputfile} )
+	{
+		$command = '('.$command.')';
+
+		$command.= ' <"'.$arguments{inputfile}.'"' if $arguments{inputfile};
+		$command.= ' >"'.$arguments{outputfile}.'"' if $arguments{outputfile};
+	}
+
+	if( $commandlineoption{debug} )
+	{
+		print STDERR "DEBUG: command: $command\n";
+	}
+	if( $arguments{debug} )
+	{
+		print STDERR "DEBUG: Would have executed command:$command\n";
+		return 1;
+	}
+	return `$command`;
 }
 
 

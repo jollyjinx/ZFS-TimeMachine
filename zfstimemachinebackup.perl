@@ -18,12 +18,17 @@
 use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'sourcedataset'							=>	['puddle','string'],
+																	'sourcehost'							=>	['','string'],
+																	'sourcehostoptions'						=>	['','string'],
+																	'sourcedataset'							=>	['','string'],
+
+																	'destinationhost'						=>	['','string'],
+																	'destinationhostoptions'				=>	['','string'],
+																	'destinationdataset'					=>	['','string'],
+
 																	'createsnapshotonsource'				=>	[0,'flag'],
 																	'snapshotstokeeponsource'				=>	[0,'number'],
 																	'minimumtimetokeepsnapshotsonsource'	=>	['','string'],
-																	'destinationdataset'					=>	['ocean/puddle','string'],
-																	'destinationhost'						=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
 																	'deduplicate'							=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
@@ -41,9 +46,13 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 
 my $timebuckets								= jnxparsetimeperbuckethash( $commandlineoption{keepbackupshash}	);
 my @maximumtimebuckets						= jnxparsetimeperfilesystemhash( $commandlineoption{maximumtimeperfilesystemhash}	);
-my $destinationhost							= $commandlineoption{destinationhost};
-my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};	
+my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};
 my $minimumtimetokeepsnapshotsonsource		= jnxparsesimpletime( $commandlineoption{minimumtimetokeepsnapshotsonsource} );
+
+
+my %source 		= (	host => $commandlineoption{sourcehost}		, hostoptions => $commandlineoption{sourcehostoptions}		, dataset => $commandlineoption{sourcedataset} );
+my %destination = (	host => $commandlineoption{destinationhost}	, hostoptions => $commandlineoption{destinationhostoptions}	, dataset => $commandlineoption{destinationdataset} );
+
 
 
 if( $commandlineoption{debug} )
@@ -73,7 +82,7 @@ my $newsnapshotname = undef;
 
 if( $commandlineoption{createsnapshotonsource} )
 {
-	$newsnapshotname	= JNX::ZFS::createsnapshotfordataset($commandlineoption{sourcedataset},$commandlineoption{recursive}) || die "Could not create snapshot on $commandlineoption{sourcedataset}";
+	$newsnapshotname	= JNX::ZFS::createsnapshot(	%source, recursive	=> $commandlineoption{recursive} ) 		|| die "Could not create snapshot on $source{host}:$source{dataset}";
 
 	print 'Created '.($commandlineoption{recursive}?'recursive ':undef).'snapshot '.$newsnapshotname."\n";
 }
@@ -100,7 +109,7 @@ if( my $childpid = fork() )
 
 	if( $commandlineoption{recursive} )
 	{
-		@sourcefilesystems		= JNX::ZFS::getsubfilesystemsondataset($commandlineoption{sourcedataset});
+		@sourcefilesystems		= JNX::ZFS::getsubdatasets( %source );
 		
 		print 'Got sourcefilesystems:'.join("\n\t",@sourcefilesystems)."\n" if $commandlineoption{verbose};
 	}
@@ -110,7 +119,7 @@ if( my $childpid = fork() )
 	{
 		my $destinationdataset	= $sourcedataset;
 
-		$destinationdataset		=~ s/^\Q$commandlineoption{sourcedataset}\E/$commandlineoption{destinationdataset}/;
+		$destinationdataset		=~ s/^\Q$source{dataset}\E/$destination{dataset}/;
 
 		my $maximumtimeforfilesystem = 0;
 
@@ -131,8 +140,8 @@ if( my $childpid = fork() )
 		####
 		# figure out existing snapshots on both datasets
 		####
-		my @sourcesnapshots 		= JNX::ZFS::getsnapshotsfordatasetandhost($sourcedataset,undef);
-		my @destinationsnapshots	= JNX::ZFS::getsnapshotsfordatasetandhost($destinationdataset,$destinationhost);
+		my @sourcesnapshots 		= JNX::ZFS::getsnapshotsfordataset(%source		,dataset => $sourcedataset);
+		my @destinationsnapshots	= JNX::ZFS::getsnapshotsfordataset(%destination	,dataset => $destinationdataset);
 
 		if( ! @sourcesnapshots )
 		{
@@ -196,7 +205,7 @@ if( my $childpid = fork() )
 						
 						for my $snapshotname (@snapshotsnewerondestination)
 						{
-							JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$destinationdataset,$destinationhost);
+							JNX::ZFS::destroysnapshots( %destination, snapshots => $snapshotname );
 							
 							@destinationsnapshots = grep(!/^\Q$snapshotname\E$/,@destinationsnapshots); # grep as delete @destinationsnapshots[$snapshotname] works only on hashes.
 						}
@@ -226,12 +235,8 @@ if( my $childpid = fork() )
 			{
 				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcedataset.'@'.$snapshotdate.'"';
 			}
-			
-			if( $destinationhost )
-			{
-				system($zfssendcommand.' | (ssh -C '.$destinationhost." '".$zfsreceivecommand."')") && die "Can't remote command did fail: $zfssendcommand -> $zfsreceivecommand\n"
-			}
-			else
+
+
 			{
 				# workaround is needed as the 2012-01-13 panics the machine if zfs send pipes to zfs receive
 
@@ -242,7 +247,7 @@ if( my $childpid = fork() )
 				
 				if( 0 == ( my $pid = fork() ) )
 				{
-					system($zfssendcommand.'> "'.$zfsbugworkaroundintermediatefifo.'"') && die "Can't execute $zfssendcommand";
+					die "Can't execute $zfssendcommand" if !defined(JNX::System::executecommand(%source, command=> $zfssendcommand, outputfile=>$zfsbugworkaroundintermediatefifo));
 					exit;
 				}
 				else
@@ -250,7 +255,7 @@ if( my $childpid = fork() )
 					die "Could not fork zfs send" if $pid<0
 				}
 				
-				system($zfsreceivecommand.'< "'.$zfsbugworkaroundintermediatefifo.'"')	&& die "Can't execute $zfsreceivecommand";
+				die "Can't execute $zfsreceivecommand" if !defined(JNX::System::executecommand(%destination, command=>$zfsreceivecommand, inputfile=>$zfsbugworkaroundintermediatefifo));
 			
 				unlink($zfsbugworkaroundintermediatefifo);
 			}
@@ -287,12 +292,12 @@ if( my $childpid = fork() )
 							my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname);
 							if( $snapshottime < time()-$minimumtimetokeepsnapshotsonsource )
 							{
-								JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$sourcedataset);
+								JNX::ZFS::destroysnapshots( %source, snapshots => $snapshotname );
 							}
 						}
 						else
 						{
-							JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$sourcedataset);
+							JNX::ZFS::destroysnapshots( %source, snapshots => $snapshotname );
 						}
 					}
 				}
@@ -334,7 +339,7 @@ if( my $childpid = fork() )
 					{
 						print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
 						
-						JNX::ZFS::destroysnapshotondatasetandhost($snapshotname,$destinationdataset,$destinationhost)  if !$commandlineoption{debug}
+						JNX::ZFS::destroysnapshots( %destination, snapshots => $snapshotname );
 					}
 				}
 				else
