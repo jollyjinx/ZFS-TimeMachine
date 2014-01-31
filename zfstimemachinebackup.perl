@@ -28,11 +28,11 @@ use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
 																	'sourcehost'							=>	['','string'],
-																	'sourcehostoptions'						=>	['','string'],
+																	'sourcehostoptions'						=>	['-c blowfish -C -l root','string'],
 																	'sourcedataset'							=>	['','string'],
 
 																	'destinationhost'						=>	['','string'],
-																	'destinationhostoptions'				=>	['','string'],
+																	'destinationhostoptions'				=>	['-c blowfish -C -l root','string'],
 																	'destinationdataset'					=>	['','string'],
 
 																	'createsnapshotonsource'				=>	[0,'flag'],
