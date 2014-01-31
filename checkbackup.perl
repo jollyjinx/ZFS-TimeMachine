@@ -11,27 +11,37 @@
 
 use JNX::Configuration;
 
-my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'datasets'						=>	['puddle','string'],
-																	'snapshotinterval'				=>	[300,'number'],
-																	'snapshottime'					=>	[10,'number'],
+my %commandlineoption = JNX::Configuration::newFromDefaults( {
+																	'host'					=>	['','string'],
+																	'hostoptions'			=>	['-c blowfish -C -l root','string'],
+
+																	'datasets'				=>	['puddle','string'],
+																	'snapshotinterval'		=>	[300,'number'],
+																	'snapshottime'			=>	[10,'number'],
+
+																	'verbose'				=>	[0,'flag'],
+																	'debug'					=>	[0,'flag'],
 															 }, __PACKAGE__ );
 
-use strict;
+$commandlineoption{verbose}=1 if $commandlineoption{debug};
 
+use strict;
 use JNX::ZFS;
 use JNX::System;
+
+
+my %host 		= (	host => $commandlineoption{host}, hostoptions => $commandlineoption{hostoptions}, debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
 
 JNX::System::checkforrunningmyself($commandlineoption{'datasets'}) || die "Already running which means lookup for snapshots is too slow";
 
 my $lastwaketime 	= JNX::System::lastwaketime();
-my @datasetstotest		= split(/,/,$commandlineoption{'datasets'});
+my @datasetstotest	= split(/,/,$commandlineoption{'datasets'});
 
 for my $datasettotest (@datasetstotest)
 {
 	print STDERR "Testing dataset: $datasettotest\n";
 
-	my @snapshots		= JNX::ZFS::getsnapshotsfordataset($datasettotest);
+	my @snapshots		= JNX::ZFS::getsnapshotsfordataset(%host,dataset=>$datasettotest);
 	# print STDERR "Snapshots: @snapshots\n";
 
 	my $snapshottime	= JNX::ZFS::timeofsnapshot( pop @snapshots );
