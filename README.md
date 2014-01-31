@@ -1,7 +1,7 @@
 ZFS TimeMachine
 ===============
 
-Simple ZFS backup from one pool to another via sending snapshots, deleting old ones in time machine style. I'm using a Mac with TensCompliments ZFS implementation on my Mac and Mac and FreeBSD as destination hosts.
+ZFS Timemachine creates incremental backups of zfs datasets on one host to datasets on another host. This is done via sending snapshots, deleting old ones in time machine style. It works with FreeBSD and Macs (with TensCompliments ZFS implementation), but should work with other ZFS implementations as well.
 
 
 How it works
@@ -22,37 +22,66 @@ It requires perl and the Time::Local and Date::Parse libraries. If you are on a 
 
 If you are on a different OS (like linux or bsd) everything should work.
 
+
 How to use
 --------------
 
-start the script from the command line with --sourcedataset and --destinationdataset options.
+The simplest use of the script requires just two options,  --sourcedataset and --destinationdataset options. Like this:
 
-	$ zfstimemachinebackup.perl --help
-	[zfstimemachinebackup.perl] module options are :
-	--configurationfilename (string) default: config.ini
-									 current: not used as Config:IniFiles module not present	
-	--createdestinationsnapshotifneeded (flag) default: 1	
-	--createsnapshotonsource (flag)  default: 0	
-	--debug (number)                 default: 0	
-	--destinationhost (string)       default: 	
-	--destinationdataset (string)    default: ocean/puddle	
-	--help (option)                  default: 
-									 current: 1	
-	--replicate (flag)               default: 0	
-	--snapshotstokeeponsource (number) default: 0	
-	--minimumtimetokeepsnapshotsonsource (string) default: 	
-	--sourcedataset (string)            default: puddle
+	$ zfstimemachinebackup.perl --sourcedataset=tank --destinationdataset=root/backup
+	
+Usually you want the script to create a snapshot on the sourcedataset when it is called, so add the --createsnapshotonsource option. To see all options use the --help commandline option.
 
-	--keepbackupshash (string)       default: 24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month	
-	--maximumtimeperfilesystemhash (string) default: .*=>10yrs,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month	
-	--recursive (flag)               default: 0	
+As there are quite a few options, let's go through them in detail:
+
+Source host:
+
+- --sourcehost (string):					hostname where the source dataset is on.
+- --sourcehostoptions (string):				options given to ssh (default: -c blowfish -C -l root).
+- --sourcedataset (string):					the source dataset that is to be backed up.
+
+Destination host:
+
+- --destinationhost (string):				hostname where the destination dataset is on.
+- --destinationhostoptions (string):		options given to ssh (default: -c blowfish -C -l root)
+- --destinationdataset (string):			the destination dataset where backups should be stored.
+
+Source options:
+
+- --createsnapshotonsource (flag):			When set the script will create a new snapshot on the source dataset everytime it is called.
+- --snapshotstokeeponsource (number):		How many snapshots we should keep on the source dataset. More datasets on source will be deleted (oldest beeing deleted first). If set to 0 no snapshots will be removed on the source. See also --minimumtimetokeepsnapshotsonsource option.
+- --minimumtimetokeepsnapshotsonsource (string): Minimum time how long snapshots should exist on the source. With this set snapshots on the source will be kept at least that long even if there are more than the number of snapshots given in the --snapshotstokeeponsource option.
+- --replicate (flag):						Only needed for the very first backup. It will replicate all snapshots from the source to the destination.
+- --recursive (flag):						Should we backup all decendent datasets on the source to the destination.
+- --datasetstoignoreonsource (string):		If you are recursivly backing up, you can disable backing up datasets that match this comma seperated list of datasets.
+
+Destination snapshots:
+
+- --deletesnapshotsondestination (flag):	Should old snapshots on the destination be deleted.
+- --keepbackupshash (string):				A comma seperated list of value pairs that define the granularity of how many snapshots are kept on the destination when they are getting older. The default is *24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month* which means:
+
+		24h=>5mi	for snapshots younger than 24hours: keep not more than one per 5 minutes
+		7d=>1h		for snapshots younger than 7 days: keep not more than one snapshot per 1 hour
+		.
+		.
+		.
+- --maximumtimeperfilesystemhash (string) default: A comma seperated list of value pairs that define the granularity of how old snapshots can get on the destination. Special datasets might not be as important as others. Default of *.\*=>3months,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month* means:
+
+		.*=>10yrs	keep everything 10 years by default - after that snapshots are removed
+		.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month
+					remove snapshots older than one month for datasets ending with the regex.
 
 
-Set --recursive if you want to send the datasets and all sub datasets recursively.
-Set --createsnapshotonsource if you want to create snapshots on the source.
-Unset --createdestinationsnapshotifneeded=0 if you don't want the destinationdataset to be created.
+Configuration:
 
-The option snapshotstokeeponsource means that at least count snapshots are kept on source. Snapshots that exceed that number will be removed if source and destination have at least one snapshot in common. If you additionally to the snapshotstokeeponsource set the minimumtimetokeepsnapshotsonsource you can set the time snapshots are kept on the source even if they exceed the number of snapshotstokeeponsource.
+- --configurationfilename (string):			config.ini filename the defaults are read from. Only works if you Config::Inifiles installed.
+- --debug (number):							debugging level of the script itself. When set will also enable verbose.
+- --verbose (flag):							showing more verbosely what is going on.
+- --help (flag):							Shows all options of the script and all values without starting the script.
+
+
+Examples
+--------
 
 My current setup looks like this:
 
@@ -100,36 +129,25 @@ I'm also sending backups from the backupdisk to a remote machine with less space
 
 
 
-If you want to change the times when backups are removed on the destination you can change keepbackupshash commandline hash. The default means:
-
-	24h=>5mi	for snapshots younger than keep not more than one per 5 minutes
-	7d=>1h		for snapshots younger than 7 days keep not more than one snapshot per 1 hour
-	.
-	.
-	.
-
-Currently I do have some special directories that are not kept as long as I do not mind loosing history in them. Those are defined via the maximumtimeperfilesystemhash.
-
-	.*=>10yrs	keep everything 10 years by default - after that snapshots are removed
-	
-	.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month
-				remove snapshots older than one month for directories ending with the regex.
-	
-
-
 Autoscrub script
 ----------------
-For some reason the autoscrub feature of tens complement does not work for me, so I added a script you can use to my ZFS Timemachine script.
+My backupserver usually sleeps and so it might take a day or two before finishing a download. The autoscrub script will scrub the given pool after the time given. 
 
 	usage: ./autoscrub.perl --scrubinterval=14
 
-will scrub your pools every 14 days. If you cancel a scrub that will be recognized but also it will be scrubed after the scrubinterval passed , in case you forgot that you canceled it.
+This will scrub your pools every 14 days. If you cancel a scrub that will be recognized but also it will be scrubed after the scrubinterval passed, in case you forgot that you canceled it.
 
 You can start it for different pools as well.
 
 I'm using it in a crontab entry: 
 	1 * * * * cd ~jolly/Binaries/ZFSTimeMachine;./autoscrub.perl >/dev/null 2>&1
 
+
+
+Mac OS X only stuff
+===================
+
+The following is only relevant to those who use Macs.
 
 
 CheckBackup Script
@@ -167,6 +185,8 @@ I'm currently using a script at crontab to tell me when things go wrong:
 
 TimeMachine backups to ZFS Volumes
 ----------------------------------
+
+For those of you that want to use MacOS X's TimeMachine to backup to a ZFS volume you can create the needed sparsebundle with the following commands.
 I now have moved everything except for my boot partitions to ZFS. To have some backup of the root drive I'm backing that of with Apples provided TimeMachine and here is how I do it:
 
 Create a zfs filesystem for the TimeMachine backups for several machines:

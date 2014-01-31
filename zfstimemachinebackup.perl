@@ -40,7 +40,6 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'minimumtimetokeepsnapshotsonsource'	=>	['','string'],
 																	'replicate'								=>	[0,'flag'],
 																	'deduplicate'							=>	[0,'flag'],
-																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
 																	'deletesnapshotsondestination'			=>	[1,'flag'],
 																	'datasetstoignoreonsource'				=>	['','string'],
 
@@ -179,11 +178,6 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 				print "Could not find common snapshot between source ($sourcedataset) and destination ($destinationdataset)\n";
 				print "Destination snapshots:\n\t".join("\n\t",@destinationsnapshots)."\n";
 				print "Source snapshots:\n\t".join("\n\t",@sourcesnapshots)."\n";
-			
-				if( ! $commandlineoption{createdestinationsnapshotifneeded} )
-				{	
-					die;
-				}
 			}
 			else
 			{
