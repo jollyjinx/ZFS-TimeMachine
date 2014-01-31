@@ -12,6 +12,15 @@
 #
 #	example usage: perl zfstimemachinebackup.perl  --sourcedataset=puddle --destinationdataset=tank/puddle --snapshotstokeeponsource=100 --createsnapshotonsource
 #
+######################################
+use strict;
+use POSIX qw(strftime);
+use Data::Dumper;
+
+use JNX::ZFS;
+use JNX::System;
+
+$ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
 
 
@@ -33,7 +42,8 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'deduplicate'							=>	[0,'flag'],
 																	'createdestinationsnapshotifneeded'		=>	[1,'flag'],
 																	'deletesnapshotsondestination'			=>	[1,'flag'],
-				
+																	'datasetstoignoreonsource'				=>	['','string'],
+
 																	'recursive'								=>	[0,'flag'],
 																	'keepbackupshash'						=>	['24h=>5min,7d=>1h,90d=>1d,1y=>1w,10y=>1month','string'],
 																	'maximumtimeperfilesystemhash'			=>	['.*=>10yrs,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month','string'],
@@ -42,37 +52,18 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'debug'									=>	[0,'flag'],
 															 }, __PACKAGE__ );
 
+$commandlineoption{verbose}=1 if $commandlineoption{debug};
 
 
 my $timebuckets								= jnxparsetimeperbuckethash( $commandlineoption{keepbackupshash}	);
 my @maximumtimebuckets						= jnxparsetimeperfilesystemhash( $commandlineoption{maximumtimeperfilesystemhash}	);
 my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};
 my $minimumtimetokeepsnapshotsonsource		= jnxparsesimpletime( $commandlineoption{minimumtimetokeepsnapshotsonsource} );
+my @datasetstoignoreonsource				= split(',',$commandlineoption{datasetstoignoreonsource});
 
+my %source 		= (	host => $commandlineoption{sourcehost}		, hostoptions => $commandlineoption{sourcehostoptions}		, dataset => $commandlineoption{sourcedataset} 		, debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
+my %destination = (	host => $commandlineoption{destinationhost}	, hostoptions => $commandlineoption{destinationhostoptions}	, dataset => $commandlineoption{destinationdataset} , debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
 
-my %source 		= (	host => $commandlineoption{sourcehost}		, hostoptions => $commandlineoption{sourcehostoptions}		, dataset => $commandlineoption{sourcedataset} );
-my %destination = (	host => $commandlineoption{destinationhost}	, hostoptions => $commandlineoption{destinationhostoptions}	, dataset => $commandlineoption{destinationdataset} );
-
-
-
-if( $commandlineoption{debug} )
-{
-	$commandlineoption{verbose}=1;
-	
-	use Data::Dumper;
-
-	print STDERR Data::Dumper->Dumper($timebuckets)."\n";
-	print STDERR Data::Dumper->Dumper($maximumtimebuckets)."\n";
-}
-
-######################################
-use strict;
-use POSIX qw(strftime);
-
-use JNX::ZFS;
-use JNX::System;
-
-$ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
 ####
 # create a new snapshot
@@ -105,17 +96,33 @@ if( my $childpid = fork() )
 
 
 {
-	my @sourcefilesystems		= ( $commandlineoption{sourcedataset} );
+	my @sourcedatasets		= ( $commandlineoption{sourcedataset} );
 
 	if( $commandlineoption{recursive} )
 	{
-		@sourcefilesystems		= JNX::ZFS::getsubdatasets( %source );
-		
-		print 'Got sourcefilesystems:'.join("\n\t",@sourcefilesystems)."\n" if $commandlineoption{verbose};
+		my @recursivedatasets = JNX::ZFS::getsubdatasets( %source );
+
+		print 'Got sourcefilesystems (before deleting unwanted ones):'.join("\n\t",@recursivedatasets)."\n" if $commandlineoption{verbose};
+
+		@sourcedatasets = ();
+
+		WEEDOUTUNWANTEDONES: for my $sourcedataset (@recursivedatasets)
+		{
+			for my $datasettoignore (@datasetstoignoreonsource)
+			{
+				if( $sourcedataset =~ /^\Q$datasettoignore\E/ )
+				{
+					print 'Ignoring dataset:'.$sourcedataset."\n";
+					next WEEDOUTUNWANTEDONES;
+				}
+			}
+			print "Keeping dataset:$sourcedataset\n" if $commandlineoption{verbose};
+			push(@sourcedatasets,$sourcedataset);
+		}
+		print "Got sourcefilesystems:".join("\n\t",@sourcedatasets)."\n" if $commandlineoption{verbose};
 	}
 
-
-	for my $sourcedataset (@sourcefilesystems)
+DATASET:for my $sourcedataset (@sourcedatasets)
 	{
 		my $destinationdataset	= $sourcedataset;
 
@@ -380,6 +387,8 @@ sub jnxparsetimeperbuckethash
 			}
 		}
 	}
+	print STDERR __PACKAGE__.'['.__LINE__.']:'."Created buckethash:".Data::Dumper->Dumper(\%timehash) if $commandlineoption{debug};
+
 	return \%timehash;
 }
 
@@ -406,12 +415,14 @@ sub jnxparsetimeperfilesystemhash
 
 				if( length($key)  && ($valuetime>=0) )
 				{
-					printf "Will use Maximumtime: %8d for filesystem matching:%s\n",$valuetime,$key if $commandlineoption{debug};
+					printf __PACKAGE__.'['.__LINE__.']:'."Will use Maximumtime: %8d for filesystem matching:%s\n",$valuetime,$key if $commandlineoption{debug};
 					push(@filesystemarray, [$key,$valuetime] );
 				}
 			}
 		}
 	}
+	print STDERR __PACKAGE__.'['.__LINE__.']:'."Created timehash:".Data::Dumper->Dumper(\@filesystemarray) if $commandlineoption{debug};
+
 	return @filesystemarray;
 }
 
@@ -455,7 +466,7 @@ sub bucketfortime
 	}
 	
 	my $bucket = int($timedistance/$buckettime)*$buckettime;
-	print "Timedistance: $timedistance , $timetotest, ".localtime($timetotest)." buckettime:$buckettime bucket:$bucket\n" if $commandlineoption{debug};
+	print __PACKAGE__.'['.__LINE__.']:'."Timedistance: $timedistance , $timetotest, ".localtime($timetotest)." buckettime:$buckettime bucket:$bucket\n" if $commandlineoption{debug};
 	
 	return $bucket;
 }

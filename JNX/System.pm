@@ -6,13 +6,6 @@ use English;
 use Date::Parse qw(str2time);
 use Digest::MD5 qw(md5_hex);
 
-use JNX::Configuration;
-
-my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'verbose'								=>	[0,'flag'],
-																	'debug'									=>	[0,'flag'],
-															 }, __PACKAGE__ );
-
 
 sub boottime
 {
@@ -124,16 +117,16 @@ sub checkforrunningmyself
 =head2	System::executecommand()
 
 	Executes a command either locally or remotely
-=head3	Arguments:
+	
+	Arguments: a hash the following keys are used:	command, host, hostoptions, debug, verbose
 
-	A hash the following keys are used:	command, host, hostoptions
-
-=head3 Returns:
+	Returns:	
+	
 	in scalar context returns the output of the command as string
+	
 	in array context returns the output in lines
 
 	in $? returns exit value
-
 =cut
 
 sub executecommand
@@ -156,9 +149,9 @@ sub executecommand
 		$command.= ' >"'.$arguments{outputfile}.'"' if $arguments{outputfile};
 	}
 
-	if( $commandlineoption{debug} )
+	if( $arguments{verbose} )
 	{
-		print STDERR "DEBUG: command: $command\n";
+		print STDERR "Executing command: $command\n";
 	}
 	if( $arguments{debug} )
 	{

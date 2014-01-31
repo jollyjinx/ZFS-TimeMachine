@@ -5,15 +5,6 @@ use Date::Parse qw(str2time);
 use POSIX qw(strftime);
 
 
-
-use JNX::Configuration;
-
-my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'verbose'								=>	[0,'flag'],
-																	'debug'									=>	[0,'flag'],
-															 }, __PACKAGE__ );
-
-
 $ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
 
 
@@ -86,13 +77,13 @@ sub createsnapshot
 
 	return undef if !defined(JNX::System::executecommand( %arguments, command => 'zfs snapshot '.($arguments{recursive}?'-r ':'').'"'.$arguments{dataset}.'@'.$snapshotdate.'"'));
 
-	print STDERR "Created Snapshot: $snapshotname\n" if $commandlineoption{verbose};
+	print STDERR "Created Snapshot: $snapshotname\n" if $arguments{verbose};
 
 	my @snapshots = getsnapshotsfordataset( %arguments );
 	
 	for my $name (reverse @snapshots)
 	{
-		print STDERR "Testing Snapshot: $name\n" if $commandlineoption{verbose};
+		print STDERR "Testing Snapshot: $name\n" if $arguments{verbose};
 		return $snapshotname if $name eq $snapshotdate;
 	}
 	print STDERR 'Could not create snapshot:'.$snapshotname."\n";
@@ -242,12 +233,12 @@ sub destroysnapshots
 	{
 		@snapshotstodelete = ($arguments{snapshots});
 	}
-	
+
 
 
 	foreach my $snapshot (@snapshotstodelete)
 	{
-		JNX::System::executecommand( %arguments, command => 'zfs destroy "'.$arguments{dataset}.'@'.$snapshot.'"', debug=>$commandlineoption{debug} );
+		JNX::System::executecommand( %arguments, command => 'zfs destroy "'.$arguments{dataset}.'@'.$snapshot.'"' );
 	}
 }
 
