@@ -1,7 +1,7 @@
 ZFS TimeMachine
 ===============
 
-ZFS Timemachine creates incremental backups of zfs datasets on one host to datasets on another host. This is done via sending snapshots, deleting old ones in time machine style. It works with FreeBSD and Macs (with TensCompliments ZFS implementation), but should work with other ZFS implementations as well.
+TimeMachine style backups for ZFS users. ZFS-Timemachine creates incremental backups of zfs datasets on one host to datasets on another host. This is done via sending snapshots, deleting old ones in time machine style. It works with FreeBSD and Macs (with TensCompliments ZFS implementation), but should work with other ZFS implementations as well.
 
 
 How it works
