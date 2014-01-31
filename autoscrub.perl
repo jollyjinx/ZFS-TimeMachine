@@ -12,16 +12,28 @@
 use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
-																	'pools'							=>	['allavailablepools','string'],
-																	'scrubinterval'				=>	[7,'number'],
+
+																	'host'					=>	['','string'],
+																	'hostoptions'			=>	['-c blowfish -C -l root','string'],
+
+																	'pools'					=>	['allavailablepools','string'],
+
+																	'scrubinterval'			=>	[7,'number'],
+																	'verbose'				=>	[0,'flag'],
+																	'debug'					=>	[0,'flag'],
 															 }, __PACKAGE__ );
+
+$commandlineoption{verbose}=1 if $commandlineoption{debug};
+
+my %host 		= (	host => $commandlineoption{host}, hostoptions => $commandlineoption{hostoptions} , debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
+
 
 use strict;
 
 use JNX::ZFS;
 use JNX::System;
 
-my %pools	= %{ JNX::ZFS::pools() };
+my %pools	= %{ JNX::ZFS::pools( %host ) };
 my @scrubpools;
 
 if( $commandlineoption{pools} eq 'allavailablepools' )
@@ -41,7 +53,7 @@ for my $pool (@scrubpools )
 	{
 		if( $pools{$pool}{lastscrub} < ( time() - (86400*$commandlineoption{scrubinterval})) ) 
 		{
-			system('zpool scrub '.$pool) && die "could not start scrub: $!";
+			die "could not start scrub: $!" if !defined(JNX::System::executecommand(%host, command=> 'zpool scrub '.$pool));
 			print "$pool: starting scrub \n";
 		}
 		else
