@@ -206,7 +206,7 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 						
 						for my $snapshotname (@snapshotsnewerondestination)
 						{
-							JNX::ZFS::destroysnapshots( %destination, snapshots => $snapshotname );
+							JNX::ZFS::destroysnapshots( %destination, dataset => $destinationdataset,snapshots => $snapshotname );
 							
 							@destinationsnapshots = grep(!/^\Q$snapshotname\E$/,@destinationsnapshots); # grep as delete @destinationsnapshots[$snapshotname] works only on hashes.
 						}
@@ -293,12 +293,12 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 							my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname);
 							if( $snapshottime < time()-$minimumtimetokeepsnapshotsonsource )
 							{
-								JNX::ZFS::destroysnapshots( %source, snapshots => $snapshotname );
+								JNX::ZFS::destroysnapshots( %source, dataset=>$sourcedataset, snapshots => $snapshotname );
 							}
 						}
 						else
 						{
-							JNX::ZFS::destroysnapshots( %source, snapshots => $snapshotname );
+							JNX::ZFS::destroysnapshots( %source, dataset=>$sourcedataset, snapshots => $snapshotname );
 						}
 					}
 				}
@@ -340,7 +340,7 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 					{
 						print 'Will remove snapshot:'.$snapshotname.'='.$snapshottime.' Backup in bucket: $backupbucket{'.$bucket.'}='.$backupbuckets{$bucket}."\n";
 						
-						JNX::ZFS::destroysnapshots( %destination, snapshots => $snapshotname );
+						JNX::ZFS::destroysnapshots( %destination, dataset => $destinationdataset, snapshots => $snapshotname );
 					}
 				}
 				else
