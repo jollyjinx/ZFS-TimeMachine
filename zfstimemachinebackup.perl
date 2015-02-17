@@ -14,7 +14,8 @@
 #
 ######################################
 use strict;
-use POSIX qw(strftime);
+use feature "state";
+use POSIX qw(strftime EXIT_FAILURE EXIT_SUCCESS);
 use Data::Dumper;
 
 use JNX::ZFS;
@@ -53,7 +54,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 
 $commandlineoption{verbose}=1 if $commandlineoption{debug};
 
-
+my $scriptstarttime                         = time();
 my $timebuckets								= jnxparsetimeperbuckethash( $commandlineoption{keepbackupshash}	);
 my @maximumtimebuckets						= jnxparsetimeperfilesystemhash( $commandlineoption{maximumtimeperfilesystemhash}	);
 my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};
@@ -291,7 +292,7 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 						if( $minimumtimetokeepsnapshotsonsource > 0 )
 						{
 							my $snapshottime = JNX::ZFS::timeofsnapshot($snapshotname);
-							if( $snapshottime < time()-$minimumtimetokeepsnapshotsonsource )
+							if( $snapshottime < $scriptstarttime-$minimumtimetokeepsnapshotsonsource )
 							{
 								JNX::ZFS::destroysnapshots( %source, dataset=>$sourcedataset, snapshots => $snapshotname );
 							}
@@ -325,7 +326,7 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 					{
 						$keepsnapshot = 0;
 					}
-					elsif( ($maximumtimeforfilesystem > 0) && ((time()-$snapshottime) > $maximumtimeforfilesystem) )
+					elsif( ($maximumtimeforfilesystem > 0) && (($scriptstarttime-$snapshottime) > $maximumtimeforfilesystem) )
 					{
 						$keepsnapshot = 0;
 					}
@@ -445,12 +446,20 @@ sub jnxparsesimpletime
 sub bucketfortime
 {
 	my($timetotest)	= @_;
-	
-	my $timedistance = time() - $timetotest;
-	
-	my $buckettime	= (sort( values %{$timebuckets} ))[-1];
 
-	for my $bucketage  (sort{ $a<=>$b }( keys %{$timebuckets} ))
+	if( $timetotest > $scriptstarttime )
+	{
+		print __PACKAGE__.'['.__LINE__.']:'."Time found in snapshot:".localtime($timetotest)." is in the future - exiting\n";
+		exit EXIT_FAILURE;
+	}
+
+	state $sortedbucketsvalues   = [ sort{ $a<=>$b }( values %{$timebuckets}) ];
+    state $sortedbucketskeys	 = [ sort{ $a<=>$b }( keys %{$timebuckets} )  ];
+        
+	my $timedistance    = $scriptstarttime - $timetotest;
+	my $buckettime		= $$sortedbucketsvalues[-1];         # default is to put it in the last bucket and see if there are earlier buckets
+
+	for my $bucketage  (@{$sortedbucketskeys})
 	{
 		if( $timedistance < $bucketage )
 		{
@@ -458,8 +467,9 @@ sub bucketfortime
 			last;
 		}
 	}
+    my $buckettimetouse = $scriptstarttime - ($scriptstarttime % $buckettime) + $buckettime; # align 	
+	my $bucket 			= $timetotest - ($timetotest%$buckettime);
 	
-	my $bucket = int($timedistance/$buckettime)*$buckettime;
 	print __PACKAGE__.'['.__LINE__.']:'."Timedistance: $timedistance , $timetotest, ".localtime($timetotest)." buckettime:$buckettime bucket:$bucket\n" if $commandlineoption{debug};
 	
 	return $bucket;
