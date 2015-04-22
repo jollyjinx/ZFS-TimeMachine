@@ -28,7 +28,7 @@ How to use
 
 The simplest use of the script requires just two options,  --sourcedataset and --destinationdataset options. Like this:
 
-	$ zfstimemachinebackup.perl --sourcedataset=tank --destinationdataset=root/backup
+	$ sudo zfstimemachinebackup.perl --sourcedataset=tank --destinationdataset=root/backup
 	
 Usually you want the script to create a snapshot on the sourcedataset when it is called, so add the --createsnapshotonsource option. To see all options use the --help commandline option.
 
@@ -50,7 +50,7 @@ Source options:
 
 - --createsnapshotonsource (flag):			When set the script will create a new snapshot on the source dataset everytime it is called.
 - --snapshotstokeeponsource (number):		How many snapshots we should keep on the source dataset. More datasets on source will be deleted (oldest beeing deleted first). If set to 0 no snapshots will be removed on the source. See also --minimumtimetokeepsnapshotsonsource option.
-- --minimumtimetokeepsnapshotsonsource (string): Minimum time how long snapshots should exist on the source. With this set snapshots on the source will be kept at least that long even if there are more than the number of snapshots given in the --snapshotstokeeponsource option.
+- --minimumtimetokeepsnapshotsonsource (string): Minimum time how long snapshots should exist on the source. With this set snapshots on the source will be kept at least that long even if there are more than the number of snapshots given in the --snapshotstokeeponsource option. (Eg: *1week*, *1month* or something like that).
 - --replicate (flag):						Only needed for the very first backup. It will replicate all snapshots from the source to the destination.
 - --recursive (flag):						Should we backup all decendent datasets on the source to the destination.
 - --datasetstoignoreonsource (string):		If you are recursivly backing up, you can disable backing up datasets that match this comma seperated list of datasets.
@@ -119,13 +119,13 @@ My current setup looks like this:
 /Local is where my home directory lives. The script is called as follows
 	
 
-	$ ./zfstimemachinebackup.perl  --sourcedataset=puddle --destinationdataset=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
+	$ sudo ./zfstimemachinebackup.perl  --sourcedataset=puddle --destinationdataset=ocean/puddle --snapshotstokeeponsource=100 --createsnapshotonsource --recursive
 	
 So puddle is set as source, ocean/puddle will receive the snapshots from puddle and 100 snapshots are kept on puddle itself.
 
 I'm also sending backups from the backupdisk to a remote machine with less space, so I keep backups only for 3 months:
 
-	$ ./zfstimemachinebackup.perl  --sourcedataset=ocean/puddle --destinationdataset=backups/puddle --destinationhost=server.example.com --recursive --maximumtimeperfilesystemhash='.*=>3months,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month'
+	$ sudo ./zfstimemachinebackup.perl  --sourcedataset=ocean/puddle --destinationdataset=backups/puddle --destinationhost=server.example.com --recursive --maximumtimeperfilesystemhash='.*=>3months,.+/(Dropbox|Downloads|Caches|Mail Downloads|Saved Application State|Logs)$=>1month'
 
 
 
@@ -133,7 +133,7 @@ Autoscrub script
 ----------------
 My backupserver usually sleeps and so it might take a day or two before finishing a download. The autoscrub script will scrub the given pool after the time given. 
 
-	usage: ./autoscrub.perl --scrubinterval=14
+	usage: sudo ./autoscrub.perl --scrubinterval=14
 
 This will scrub your pools every 14 days. If you cancel a scrub that will be recognized but also it will be scrubed after the scrubinterval passed, in case you forgot that you canceled it.
 
@@ -174,7 +174,7 @@ It has three options :
 	--snapshottime (number)          default: 10
 
 
-I'm currently using a script at crontab to tell me when things go wrong:
+I'm currently using a script at crontab (executing as root) to tell me when things go wrong:
 	
 	#!/bin/zsh
 
@@ -191,7 +191,7 @@ I now have moved everything except for my boot partitions to ZFS. To have some b
 
 Create a zfs filesystem for the TimeMachine backups for several machines:
 
-	zfs create ocean/TimeMachine
+	sudo zfs create ocean/TimeMachine
 
 
 Create a 100Gb sparsebundle for TimeMachine (my root is rather small, your mileage may vary):
