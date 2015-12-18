@@ -29,12 +29,14 @@ use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
 																	'sourcehost'							=>	['','string'],
-																	'sourcehostoptions'						=>	['-c blowfish -C -l root','string'],
+																	'sourcehostoptions'						=>	['-C -l root','string'],
 																	'sourcedataset'							=>	['','string'],
+																	'sourceenvironment'                     =>  ['','string'],
 
 																	'destinationhost'						=>	['','string'],
-																	'destinationhostoptions'				=>	['-c blowfish -C -l root','string'],
+																	'destinationhostoptions'				=>	['-C -l root','string'],
 																	'destinationdataset'					=>	['','string'],
+																	'destinationenvironment'                =>  ['"PATH=\$PATH:/usr/local/bin"','string'],
 
 																	'createsnapshotonsource'				=>	[0,'flag'],
 																	'snapshotstokeeponsource'				=>	[0,'number'],
@@ -61,8 +63,8 @@ my $snapshotstokeeponsource					= $commandlineoption{snapshotstokeeponsource};
 my $minimumtimetokeepsnapshotsonsource		= jnxparsesimpletime( $commandlineoption{minimumtimetokeepsnapshotsonsource} );
 my @datasetstoignoreonsource				= split(',',$commandlineoption{datasetstoignoreonsource});
 
-my %source 		= (	host => $commandlineoption{sourcehost}		, hostoptions => $commandlineoption{sourcehostoptions}		, dataset => $commandlineoption{sourcedataset} 		, debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
-my %destination = (	host => $commandlineoption{destinationhost}	, hostoptions => $commandlineoption{destinationhostoptions}	, dataset => $commandlineoption{destinationdataset} , debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
+my %source 		= (	host => $commandlineoption{sourcehost}		, hostoptions => $commandlineoption{sourcehostoptions}		, remoteenvironment => $commandlineoption{sourceenvironment} ,dataset => $commandlineoption{sourcedataset} 		, debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
+my %destination = (	host => $commandlineoption{destinationhost}	, hostoptions => $commandlineoption{destinationhostoptions}	, remoteenvironment => $commandlineoption{destinationenvironment} ,dataset => $commandlineoption{destinationdataset} , debug=>$commandlineoption{debug},verbose=>$commandlineoption{verbose});
 
 
 ####

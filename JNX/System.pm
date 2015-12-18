@@ -139,7 +139,7 @@ sub executecommand
 
 	if( $arguments{host} && ( lc($arguments{host}) ne 'localhost') )
 	{
-		$command = 'ssh '.$arguments{hostoptions}.' '.$arguments{host}." '".$arguments{command}."'";
+		$command = 'ssh '.$arguments{hostoptions}.' '.$arguments{host}." ".$arguments{remoteenvironment}." '".$arguments{command}."'";
 	}
 	if( $arguments{inputfile} || $arguments{outputfile} )
 	{
