@@ -53,6 +53,7 @@ Source options:
 - --minimumtimetokeepsnapshotsonsource (string): Minimum time how long snapshots should exist on the source. With this set snapshots on the source will be kept at least that long even if there are more than the number of snapshots given in the --snapshotstokeeponsource option. (Eg: *1week*, *1month* or something like that).
 - --replicate (flag):						Only needed for the very first backup. It will replicate all snapshots from the source to the destination.
 - --recursive (flag):						Should we backup all decendent datasets on the source to the destination.
+- --raw (flag):		          		Backup the data in raw mode, this sends the encrypted version of a dataset, if using ZFS encryption
 - --datasetstoignoreonsource (string):		If you are recursivly backing up, you can disable backing up datasets that match this comma seperated list of datasets.
 
 Destination snapshots:

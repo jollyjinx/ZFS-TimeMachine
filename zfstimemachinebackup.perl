@@ -41,6 +41,7 @@ my %commandlineoption = JNX::Configuration::newFromDefaults( {
 																	'createsnapshotonsource'				=>	[0,'flag'],
 																	'snapshotstokeeponsource'				=>	[0,'number'],
 																	'minimumtimetokeepsnapshotsonsource'	=>	['','string'],
+																	'raw'								=>  [0,'flag'],
 																	'replicate'								=>	[0,'flag'],
 																	'deduplicate'							=>	[0,'flag'],
 																	'deletesnapshotsondestination'			=>	[1,'flag'],
@@ -233,11 +234,11 @@ DATASET:for my $sourcedataset (@sourcedatasets)
 			
 			if( $lastcommonsnapshot )
 			{
-				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcedataset.'@'.$lastcommonsnapshot.'" "'.$sourcedataset.'@'.$snapshotdate.'"';
+				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{raw}?'-w ':undef).($commandlineoption{deduplicate}?'-D ':undef).'-I "'.$sourcedataset.'@'.$lastcommonsnapshot.'" "'.$sourcedataset.'@'.$snapshotdate.'"';
 			}
 			else
 			{
-				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcedataset.'@'.$snapshotdate.'"';
+				$zfssendcommand	= 'zfs send '.($commandlineoption{verbose}?'-v ':undef).($commandlineoption{raw}?'-w ':undef).($commandlineoption{replicate}?'-R ':undef).($commandlineoption{deduplicate}?'-D ':undef).'"'.$sourcedataset.'@'.$snapshotdate.'"';
 			}
 
 
