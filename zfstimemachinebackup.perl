@@ -29,12 +29,12 @@ use JNX::Configuration;
 
 my %commandlineoption = JNX::Configuration::newFromDefaults( {																	
 																	'sourcehost'							=>	['','string'],
-																	'sourcehostoptions'						=>	['-C -l root','string'],
+																	'sourcehostoptions'						=>	['-C -l root -o ControlMaster=auto -o ControlPath=/tmp/%r@%h:%p -o ControlPersist=15m','string'],
 																	'sourcedataset'							=>	['','string'],
 																	'sourceenvironment'                     =>  ['','string'],
 
 																	'destinationhost'						=>	['','string'],
-																	'destinationhostoptions'				=>	['-C -l root','string'],
+																	'destinationhostoptions'				=>	['-C -l root -o ControlMaster=auto -o ControlPath=/tmp/%r@%h:%p -o ControlPersist=15m','string'],
 																	'destinationdataset'					=>	['','string'],
 																	'destinationenvironment'                =>  ['"PATH=\$PATH:/usr/local/bin"','string'],
 
