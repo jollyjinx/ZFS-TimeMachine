@@ -5,7 +5,7 @@ use Date::Parse qw(str2time);
 use POSIX qw(strftime);
 
 
-$ENV{PATH}=$ENV{PATH}.':/usr/sbin/';
+$ENV{PATH}=$ENV{PATH}.':/usr/sbin/:/usr/local/sbin:/usr/local/bin';
 
 
 
